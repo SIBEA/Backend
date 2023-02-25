@@ -90,7 +90,7 @@ def get_dataframe():
     df.drop("convocatoria", axis=1, inplace=True)
     df.drop("miembro_del_equipo", axis=1, inplace=True)
 
-    df = df.drop(list_columns_drop,axis = 1, inplace=True)
+    df.drop(list_columns_drop,axis = 1, inplace=True)
 
     #Creacion del corpus
     df["corpus"] = df["titulo_del_proyecto"].fillna("") + " "  + \
