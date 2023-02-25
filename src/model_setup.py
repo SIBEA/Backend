@@ -11,7 +11,7 @@ models = {
     'model_multilingual_mpnet':'paraphrase-multilingual-mpnet-base-v2'}
 
 
-path = './nlp/models/model_minilm'
+path = './nlp/models'
 
 
 
