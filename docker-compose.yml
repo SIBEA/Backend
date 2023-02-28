@@ -1,0 +1,26 @@
+version: '3'
+services:
+  solr:
+    container_name: solr
+    image: solr
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8983/solr/admin/cores?action=STATUS"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    ports:
+     - "8983:8983"
+    volumes:
+      - ./solr-data:/var/solr
+      - ./solr-setup:/home/setup
+      - ./embeddings:/home/embeddings
+    #command:
+      #- /home/setup/delete_cores.sh
+      #- /home/setup/solr_startup_cosine.sh
+      #- bin/post -c model_multilingual_distiluse_v1 /home/embeddings/normalized/model_multilingual_distiluse_v1.json
+      #- bin/post -c model_multilingual_distiluse_v2 /home/embeddings/normalized/model_multilingual_distiluse_v2.json
+      #- bin/post -c model_multilingual_minilm /home/embeddings/normalized/model_multilingual_minilm.json
+      #- bin/post -c model_multilingual_mpnet /home/embeddings/normalized/model_multilingual_mpnet.json
+
+volumes:
+  data:

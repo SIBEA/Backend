@@ -51,12 +51,12 @@ def get_results(results, df):
 
 def generate_corups():
     print("Generating corpus...")
-    inv_df = pd.read_excel('./xlsx/InvestigarPUJ.xlsx',
+    inv_df = pd.read_excel('../../xlsx/InvestigarPUJ.xlsx',
                            sheet_name='Hoja1', converters={'ID PROYECTO': str})
-    siap_df = pd.read_excel('./xlsx/Descriptores SIAP 2023.xlsx',
+    siap_df = pd.read_excel('../../xlsx/Descriptores SIAP 2023.xlsx',
                             sheet_name='SIAP ', converters={'ID Proy': str})
     inv_full_df = pd.read_excel(
-        './xlsx/Descriptores SIAP 2023.xlsx', sheet_name='InvestigarPUJ', converters={'Id': str})
+        '../../xlsx/Descriptores SIAP 2023.xlsx', sheet_name='InvestigarPUJ', converters={'Id': str})
 
     inv_full_df.drop("Año", axis=1, inplace=True)
 
@@ -131,6 +131,6 @@ if __name__ == "__main__":
         'paraphrase-multilingual-MiniLM-L12-v2')
     (messages, df) = generate_corups()
     embeddings = generate_corpus_embeddings(messages, model)
-    search_results = search("Guerra", embeddings, 10, model)
+    search_results = search("Vacunó", embeddings, 10, model)
     results = get_results(search_results, df).to_numpy()
     print(results)

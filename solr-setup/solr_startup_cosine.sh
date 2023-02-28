@@ -3,7 +3,7 @@
 
 bin/solr create -c model_minilm
 
-bin/solr create -c model_mpnet 
+bin/solr create -c model_mpnet
 
 bin/solr create -c model_multilingual_distiluse_v1
 
@@ -391,15 +391,3 @@ curl http://localhost:8983/solr/model_multilingual_mpnet/schema -X POST -H 'Cont
 }'
 
 ## Indexing Documents
-
-bin/post -c model_minilm <RUTA_JSON_VECTORES_MODELO>
-
-bin/post -c model_mpnet <RUTA_JSON_VECTORES_MODELO>
-
-bin/post -c model_multilingual_distiluse_v1 <RUTA_JSON_VECTORES_MODELO>
-
-bin/post -c model_multilingual_distiluse_v2 <RUTA_JSON_VECTORES_MODELO>
-
-bin/post -c model_multilingual_minilm <RUTA_JSON_VECTORES_MODELO>
-
-bin/post -c model_multilingual_mpnet <RUTA_JSON_VECTORES_MODELO>
