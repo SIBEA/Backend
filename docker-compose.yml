@@ -14,6 +14,8 @@ services:
       - ./solr-data:/var/solr
       - ./solr-setup:/home/setup
       - ./embeddings:/home/embeddings
+    environment:
+      - SOLR_OPTS=-Dsolr.jetty.request.header.size=65535
     #command:
       #- /home/setup/delete_cores.sh
       #- /home/setup/solr_startup_cosine.sh
