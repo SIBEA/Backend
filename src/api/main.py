@@ -5,7 +5,7 @@ import requests as r
 from enum import Enum
 app = FastAPI()
 
-
+ 
 class Models(Enum):
     def __str__(self):
         return str(self.value)
