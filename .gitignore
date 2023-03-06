@@ -4,5 +4,6 @@ src/src.egg-info/
 **/__pycache__/
 **/indexes
 **/solr-data
+**/testing
 src/nlp/testing/csv/corpus.csv
 /env

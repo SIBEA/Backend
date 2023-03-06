@@ -36,7 +36,17 @@ list_columns_drop = ['ano',
                      'tipo_de_investigacion'            
 ]
 
-
+#Unicamente se seleccionaran proyectos de los siguientes tipos de propuestas
+list_proposal_type = ['Proyecto de investigación interno',
+                      'Proyecto de creación artística interno',
+                      'ART',
+                      'INN',
+                      'NEW',
+                      'PCA',
+                      'PIS',
+                      'PPC',
+                      'PUE'
+]
 
 def get_dataframe():
     print("procesando datos...")
@@ -104,15 +114,14 @@ def get_dataframe():
     df["objetivo_socioeconomico"].fillna("") + " " + \
     df["palabras_clave"].fillna("")
 
-    #Tercera tanda de limpieza, remover filas que tengan como tipo de propuesta AJI
-    df = df[df['tipo_de_propuesta']!='AJI']
-    print(df[df['tipo_de_propuesta']=='AJI'])
+    #Tercera Seleccionar unicamente los proyectos asociados alas listas de propuestas correspondientes
+    df = df[df['tipo_de_propuesta'].isin(list_proposal_type)]
 
     #Cuarta tanda de limpieza, eliminar tildes y acentuaciones del corpus
 
     for row,index in df.iterrows():
         df.at[row,"corpus"] = unidecode(df.at[row,"corpus"])
 
-
+    print("el dataframe tiene un tamanio de: "+str(len(df.index)))
     return df
 
