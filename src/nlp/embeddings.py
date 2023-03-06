@@ -34,7 +34,7 @@ def append_embeddings(messages,model):
 ##Vectorizado de uso general, TODO: Delegar el cargue del modelo al modulo "load model".
 def embed(messages,model):
     this_file = os.path.abspath(__file__)
-    this_dir = os.path.dirname(this_file)
+    this_dir = os.path.dirname(this_file)    
     if model=='model_minilm':
         path = 'models/model_minilm'
         wanted_dir = os.path.join(this_dir,path)

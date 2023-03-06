@@ -1,5 +1,6 @@
 #Modulo responsable de automatizar la generacion de los vectores y su guardado en archivos .json
 from nlp import embeddings
+#from sentence_transformers import SentenceTransformer
 
 #nombre de los modelos sobre los cuales se quieren generar vectores
 models = [
@@ -14,3 +15,5 @@ models = [
 def generate():
     for m in models:
         embeddings.embeddings2json(m)
+
+generate()

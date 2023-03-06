@@ -16,28 +16,31 @@ class Models(Enum):
     model_multilingual_minilm='model_multilingual_minilm'
     model_multilingual_mpnet='model_multilingual_mpnet'
 
+class Method(Enum):
+    def __str__(self):
+        return str(self.value)
+    dot_product = '_dot'
+    cosine = '_cosine'
+    euclidean = '_euclidean'
+
 
 SOLR_URL = 'http://localhost:8983/solr/'
 SOLR_QUERY = 'query?q={!knn%20f=vector%20topK=50}'
-SOLR_QUERY_ARGS = '&fl=titulo,facultad,departamento,resumen&rows=100'
+SOLR_QUERY_ARGS = '&fl=titulo,facultad,departamento,objetivos,resumen&rows=100'
 @app.get('/')
 async def docs():
     response = RedirectResponse('docs')
     return response
 
-@app.get('/search/{model},{query}')   
-async def search_v1(query,model:Models):
-    print(str(model))
-    #SOLR_CORE = 'model_multilingual_distiluse_v1/'
-    SOLR_CORE = str(model)+'/'
-    #vector = embed(query,'model_multilingual_distiluse_v1')
+@app.get('/search/{model},{query},{method}')   
+async def search_v1(query,model:Models,method:Method,percentage = 0):
+    SOLR_METHOD = str(method)
+    SOLR_CORE = str(model)+SOLR_METHOD+'/'
     vector = embed(query,str(model))
-    #q1 = '&q_vector={!knn%20f=vector%20topK=100}'+str(vector.tolist())+'&fq={!frange%20l='+percentage+'}$q_vector'
-    req = SOLR_URL+SOLR_CORE+SOLR_QUERY+str(vector.tolist())+SOLR_QUERY_ARGS
+    q1 = '&q_vector={!knn%20f=vector%20topK=50}'+str(vector.tolist())+'&fq={!frange%20l='+percentage+'}$q_vector'
+    req = SOLR_URL+SOLR_CORE+SOLR_QUERY+str(vector.tolist())+q1+SOLR_QUERY_ARGS
     print(req)
     response = r.get(req).json()
     del response["responseHeader"]["params"]
-    #response["model"]=model
-    #print(response.json())
     return response
 
