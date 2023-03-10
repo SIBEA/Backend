@@ -24,7 +24,7 @@ class Method(Enum):
     euclidean = '_euclidean'
 
 
-SOLR_URL = 'http://localhost:8983/solr/'
+SOLR_URL = 'http://solr:8983/solr/'
 SOLR_QUERY = 'query?q={!knn%20f=vector%20topK=50}'
 SOLR_QUERY_ARGS = '&fl=titulo,facultad,departamento,objetivos,resumen&rows=100'
 @app.get('/')

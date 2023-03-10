@@ -8,4 +8,4 @@ docker exec -it solr bash /home/setup/solr_startup_normalized_cosine.sh
 
 docker exec -it solr bash /home/setup/solr_startup_normalized_dot_product.sh 
 
-docker exec -it solr bash /home/setup/solr_startup_normalized_euclidian.sh 
+docker exec -it solr bash /home/setup/solr_startup_normalized_euclidean.sh 

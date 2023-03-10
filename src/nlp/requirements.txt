@@ -96,7 +96,6 @@ simpleneighbors==0.1.0
 six==1.16.0
 sniffio==1.3.0
 sqlparse==0.4.3
--e git+https://github.com/SIBEA/Backend.git@1c519444b85ca9e2f62640ded2436bfe8d959468#egg=src&subdirectory=src
 stack-data==0.6.2
 starlette==0.25.0
 tensorboard==2.11.2

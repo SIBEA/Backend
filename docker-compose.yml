@@ -1,33 +1,42 @@
 version: '3'
 services:
-  initializer:
-      image: alpine
-      container_name: solr-initializer
-      restart: "no"
-      entrypoint: |
-        /bin/sh -c "chown 8983:8983 /solr"
-      volumes:
-        - ./data/solr:/solr
+  fastapi:
+    container_name: fastapi
+    build: ./src/api
+    #command: bash -c "pip install -e . && cd api && source /home/setup/delete_cores_curl.sh && uvicorn main:app --host 0.0.0.0"
+    command: bash -c "pip install -e . && cd api && sleep 15 && source /home/setup/curl/startup_cores.sh && uvicorn main:app --host 0.0.0.0"
+    #command: bash -c "pip install -e . && cd api && uvicorn main:app --host 0.0.0.0"
+    volumes:
+      - ./src/:/app/
+      - ./solr-setup:/home/setup
+      - ./embeddings:/home/embeddings
+    ports:
+      - "8000:8000"
 
   solr:
     container_name: solr
     image: solr:9.1.1
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8983/solr/admin/cores?action=STATUS"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    depends_on:
-      initializer:
-        condition: service_completed_successfully
     ports:
-     - "8983:8983"                      
+     - "8983:8983"
+    command: bash -c "source /home/setup/curl/prepare_dir.sh"
+    depends_on:
+      - fastapi
     volumes:
       - ./solr-data:/var/solr
       - ./solr-setup:/home/setup
       - ./embeddings:/home/embeddings
     environment:
       - SOLR_OPTS=-Dsolr.jetty.request.header.size=65535
+  
+  #nlp:
+  #  container_name: nlp
+  #  build: ./src/nlp
+  #  command: bash -c "pip install -e . && python -m spacy download en_core_web_sm && python -m spacy download en_core_web_md && python -m spacy download en_core_web_lg && python -m spacy download en_core_web_trf && python -m spacy download en_core_web_trf"
+  #  volumes:
+  #    - ./:/app/
+  #  depends_on:
+  #    - fastapi
+    
 
 volumes:
   data:
