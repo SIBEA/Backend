@@ -12,6 +12,7 @@ services:
       - ./embeddings:/home/embeddings
     ports:
       - "8000:8000"
+    restart: always
 
   solr:
     container_name: solr
@@ -27,7 +28,8 @@ services:
       - ./embeddings:/home/embeddings
     environment:
       - SOLR_OPTS=-Dsolr.jetty.request.header.size=65535
-  
+    restart: always
+    
   #nlp:
   #  container_name: nlp
   #  build: ./src/nlp
