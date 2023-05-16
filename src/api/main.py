@@ -18,41 +18,69 @@ app.add_middleware(
 )
 
  
-class Models(Enum):
-    def __str__(self):
-        return str(self.value)
-    model_minilm='model_minilm'
-    model_mpnet='model_mpnet'
-    model_multilingual_distiluse_v1='model_multilingual_distiluse_v1'
-    model_multilingual_distiluse_v2='model_multilingual_distiluse_v2'
-    model_multilingual_minilm='model_multilingual_minilm'
-    model_multilingual_mpnet='model_multilingual_mpnet'
-
-class Method(Enum):
-    def __str__(self):
-        return str(self.value)
-    dot_product = '_dot'
-    cosine = '_cosine'
-    euclidean = '_euclidean'
-
-
 SOLR_URL = 'http://solr:8983/solr/'
-SOLR_QUERY = 'query?q={!knn%20f=vector%20topK=50}'
-SOLR_QUERY_ARGS = '&fl=titulo,facultad,departamento,objetivos,resumen&rows=100'
+SOLR_CORE_PROYECTOS = 'proyectos/'
+#SOLR_CORE_GRUPOS = 'grupos'
+#SOLR_CORE_INVESTIGADORES = 'investigadores'
+
 @app.get('/')
 async def docs():
     response = RedirectResponse('docs')
     return response
 
-@app.get('/search/{model},{query},{method}')   
-async def search_v1(query,model:Models,method:Method,percentage = 0):
-    SOLR_METHOD = str(method)
-    SOLR_CORE = str(model)+SOLR_METHOD+'/'
-    vector = embed(query,str(model))
-    q1 = '&q_vector={!knn%20f=vector%20topK=50}'+str(vector.tolist())+'&fq={!frange%20l='+percentage+'}$q_vector'
-    req = SOLR_URL+SOLR_CORE+SOLR_QUERY+str(vector.tolist())+q1+SOLR_QUERY_ARGS
+"""
+Este endpoint retorna los top 10 proyectos de investigacion a partir de la busqueda
+"""
+@app.get('/search/proyectos/topk,{query}')   
+async def search_proyectos_topk(query, num=10, inicio=0):
+    vector = embed(query)
+    SOLR_QUERY = 'select?q={!knn f=vector topK=10}'+str(vector.tolist())
+    SOLR_QUERY_ARGS = '&fl=title'
+    SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio    
+    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
+    #print(req)
+    response = r.get(req).json()
+    del response["responseHeader"]["params"]
+    return response
+
+"""
+Este endpoint se encarga de retornar los resultados generales para los proyectos
+"""
+@app.get('/search/proyectos,{query}')   
+async def search_proyectos_general(query, num=10, inicio=0):
+    SOLR_QUERY = 'select?q=title:'+query+' or descripcion:'+query
+    SOLR_QUERY_ARGS = '&fl=title, descripcion,grupo, comunidades'
+    vector = embed(query)
+    SOLR_QUERY_RERANK = '&rq={!rerank reRankQuery=$rqq reRankWeight=1}&rqq={!knn f=vector topK=50}'+str(vector.tolist())
+    SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio
+    #vector = embed(query)
+    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_RERANK+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     print(req)
     response = r.get(req).json()
     del response["responseHeader"]["params"]
     return response
 
+"""
+Este endpoint se encarga de retornar los resultados generales para los proyectos, NO HACE RERANKING, SOLO EXISTE PARA PRUEBAS
+"""
+@app.get('/search/proyectos/norerank,{query}')   
+async def search_proyectos_general_norerank(query, num=10, inicio=0):
+    SOLR_QUERY = 'select?q=title:'+query+' or descripcion:'+query
+    SOLR_QUERY_ARGS = '&fl=title, descripcion,grupo, comunidades'
+    #vector = embed(query)
+    #SOLR_QUERY_RERANK = 'rq={!rerank reRankQuery=$rqq reRankWeight=1}&rqq={!knn f=vector topK=50}'+str(vector.tolist())
+    SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio
+    #vector = embed(query)
+    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
+    print(req)
+    response = r.get(req).json()
+    del response["responseHeader"]["params"]
+    return response
+
+"""
+TODO: 
+Endpoint Coordenadas
+Endpoint Comunidades
+Endpoint Grupos
+Endpoint Investigadores
+"""
