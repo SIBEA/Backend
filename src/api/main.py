@@ -204,8 +204,11 @@ async def search_proyectos_communities(query):
     word_cloud =[]
       
     df_test = pd.DataFrame(pd.value_counts(np.array(communities_resp)))    
+    
+    
     for index,row in df_test.iterrows():
-        word_cloud.append({'text':index,'value':int(row[0])})
+        val_normalized = (int(row[0]) - 1) / (205 - 1) * (5 - 1) + 1
+        word_cloud.append({'text':index,'value':val_normalized})
     print(word_cloud)
     return word_cloud
 
