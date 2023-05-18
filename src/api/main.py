@@ -203,14 +203,29 @@ async def search_proyectos_communities(query):
                     communities_resp.append(word.lower())       
     word_cloud =[]
       
-    df_test = pd.DataFrame(pd.value_counts(np.array(communities_resp)))    
-    
-    
+    df_test = pd.DataFrame(pd.value_counts(np.array(communities_resp)))        
     for index,row in df_test.iterrows():
         val_normalized = (int(row[0]) - 1) / (205 - 1) * (5 - 1) + 1
-        word_cloud.append({'text':index,'value':val_normalized})
+        word_cloud.append({'text':index,'value':1})
     print(word_cloud)
     return word_cloud
 
 
+"""
+ENDPOINT: /search/proyectos/{query}/total.
+ARGUMENTOS:
+    - id:string =  id del documento
+RETORNO: 
+    - Response con los parametros del proyecto de investigacion correspondiente al ID de entrada
+"""
+@app.get('/proyectos/{query}/total')   
+async def total_search_proyecto(query):
+    SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
+    SOLR_QUERY_ARGS = '&fl=titulo'
+    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS
+    #print(req)
+    response = r.get(req).json().get('response')
+    #print(response.get('numFound'))
+    #del response["responseHeader"]["params"]
+    return response.get('numFound')
 
