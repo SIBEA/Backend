@@ -59,7 +59,7 @@ RETORNO:
 async def search_proyectos_topk(query, num=10, inicio=0):
     vector = embed(query)
     SOLR_QUERY = 'select?q={!knn f=vector topK=10}'+str(vector.tolist())
-    SOLR_QUERY_ARGS = '&fl=titulo'
+    SOLR_QUERY_ARGS = '&fl=id,titulo'
     SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio    
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     response = r.get(req).json()
@@ -90,7 +90,7 @@ DESCRIPCION:
 @app.get('/search/proyectos/{query}')   
 async def search_proyectos_general(query, num=10, inicio=0):
     SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
-    SOLR_QUERY_ARGS = '&fl=titulo, descripcion,grupo, comunidades'
+    SOLR_QUERY_ARGS = '&fl=id,titulo, descripcion,grupo, comunidades'
     vector = embed(query)
     SOLR_QUERY_RERANK = '&rq={!rerank reRankQuery=$rqq reRankWeight=1}&rqq={!knn f=vector topK=50}'+str(vector.tolist())
     SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio
@@ -145,7 +145,7 @@ RETORNO:
 @app.get('/search/proyectos/coordinates/{query}')
 async def search_proyectos_coordinates(query):
     SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
-    SOLR_QUERY_ARGS = '&fl=ubicaciones'
+    SOLR_QUERY_ARGS = '&fl=ubicaciones,titulo'
     SOLR_QUERY_PAG = '&rows='+str(999)
     SOLR_QUERY_REMOVE_NAN = ' and -ubicaciones:nan'
     req = req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_REMOVE_NAN+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
@@ -155,6 +155,7 @@ async def search_proyectos_coordinates(query):
     documents = response.get('docs')
     coordinates = []
     for doc in documents:
+        title = doc.get('titulo')
         locations = doc.get('ubicaciones')                
         for loc in locations:            
             loc = loc.split(';')
@@ -162,7 +163,7 @@ async def search_proyectos_coordinates(query):
                 nombre = loc[0]
                 lat = loc[1]
                 lon = loc[2]
-                coordinates.append({'nombre':nombre,'lat':lat,'lon':lon})          
+                coordinates.append({'proyecto':title,'nombre':nombre,'lat':lat,'lon':lon})          
     print(coordinates)
     return coordinates
 
@@ -183,7 +184,7 @@ async def search_proyectos_communities(query):
     stopwords = [word.strip() for word in stopwords]
     print(f'stopwords: {stopwords}')
     SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
-    SOLR_QUERY_REMOVE_NAN = ' and -comunidades:nan'
+    SOLR_QUERY_REMOVE_NAN = ' and -comunidades:NAN'
     SOLR_QUERY_ARGS = '&fl=comunidades'
     SOLR_QUERY_PAG = '&rows='+str(999)
     req = req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_REMOVE_NAN+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
@@ -192,12 +193,12 @@ async def search_proyectos_communities(query):
     #Se debe implementar un modulo que gestione todo el postprocesamiento de las respuestas que entrega Solr
     documents = response.get('docs')
     communities_resp = []
-    for doc in documents:
+    for doc in documents:        
         communities_doc = doc.get('comunidades')        
         for com in communities_doc:
             com_split = com.split(' ')            
             for word in com_split:
-                if word.lower()  not in stopwords and word.isnumeric()==False:
+                if word.lower()  not in stopwords and word.isnumeric()==False and word:
                     communities_resp.append(word.lower())       
     word_cloud =[]
       
