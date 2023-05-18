@@ -145,7 +145,7 @@ RETORNO:
 @app.get('/search/proyectos/coordinates/{query}')
 async def search_proyectos_coordinates(query):
     SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
-    SOLR_QUERY_ARGS = '&fl=ubicaciones,titulo'
+    SOLR_QUERY_ARGS = '&fl=ubicaciones,titulo,id'
     SOLR_QUERY_PAG = '&rows='+str(999)
     SOLR_QUERY_REMOVE_NAN = ' and -ubicaciones:nan'
     req = req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_REMOVE_NAN+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
@@ -156,6 +156,7 @@ async def search_proyectos_coordinates(query):
     coordinates = []
     for doc in documents:
         title = doc.get('titulo')
+        id = doc.get('id')
         locations = doc.get('ubicaciones')                
         for loc in locations:            
             loc = loc.split(';')
@@ -163,7 +164,7 @@ async def search_proyectos_coordinates(query):
                 nombre = loc[0]
                 lat = loc[1]
                 lon = loc[2]
-                coordinates.append({'proyecto':title,'nombre':nombre,'lat':lat,'lon':lon})          
+                coordinates.append({'id':id,'proyecto':title,'nombre':nombre,'lat':lat,'lon':lon})          
     print(coordinates)
     return coordinates
 
