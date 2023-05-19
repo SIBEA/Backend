@@ -100,21 +100,23 @@ DESCRIPCION:
      Posteriormente reordena los resultados de busqueda (reranking) en base a la similitud del embedding generado a partir del termino de consulta
 """
 @app.get('/search/proyectos/{query}')   
-async def search_proyectos(query, num=10, inicio=0,propuesta = '*', estado='*'):
+async def search_proyectos(query, num=10, inicio=0,propuesta = '*', estado='*',comunidades='sin_filtrar'):
     SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
     SOLR_QUERY_FILTERS = ' and propuesta:'+propuesta+' and estado:'+estado
-    SOLR_QUERY_ARGS = '&fl=id,titulo, descripcion,grupo, comunidades,propuesta,estado'    
+    if comunidades == 'con_comunidades':
+        SOLR_QUERY_FILTERS+=' and -comunidades:NAN'
+
+    SOLR_QUERY_ARGS = ' &fl=id,titulo, descripcion,grupo,comunidades,propuesta,estado'        
     vector = embed(query)
     SOLR_QUERY_RERANK = '&rq={!rerank reRankQuery=$rqq reRankWeight=1}&rqq={!knn f=vector topK=50}'+str(vector.tolist())
     SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio
-    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_FILTERS+SOLR_QUERY_RERANK+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
+    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_FILTERS+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
+    print("QUERYYYYY")
     print(req)
     response = r.get(req).json()
     del response["responseHeader"]["params"]
     response = r.get(req).json().get('response')
-    docs = response.get('docs')
-    print("@ASIDJSLKDJ!!!!!!!!!!!")
-    
+    docs = response.get('docs')    
     for doc in docs:
         #doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
         if(doc['grupo'][0] != 'No asociado a grupos'):
@@ -143,8 +145,12 @@ async def proyectos(id):
     print(response)
     doc = response.get('docs')[0]
     doc['miembros'] = get_array_dict(doc['miembros'],'nombre')
-    doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
-    return response
+    #doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
+    print(doc['grupo'])
+    if(doc['grupo'][0] != 'No asociado a grupos'):
+            print(doc['grupo'])
+            doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
+    return doc
 
 """
 ENDPOINT: /search/proyectos/coordinates/{query}.
@@ -267,7 +273,7 @@ async def grupos(id):
 async def grupos_total(query):
     SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query+' or investigadores:'+query
     SOLR_QUERY_ARGS = '&fl=id,nombre'
-    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS
+    req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS
     response = r.get(req).json().get('response')
     return response
 
@@ -297,3 +303,11 @@ async def investigadores(id):
     doc['grupos'] = get_array_dict(doc['grupos'],'nombre')
     print(type(doc))
     return doc
+
+@app.get('/investigadores/{query}/total')   
+async def investigadores_total(query):
+    SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query+' or investigadores:'+query
+    SOLR_QUERY_ARGS = '&fl=id,nombre'
+    req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS
+    response = r.get(req).json().get('response')
+    return response
