@@ -74,9 +74,9 @@ async def search_proyectos_topk(query, num=10, inicio=0):
     SOLR_QUERY_ARGS = '&fl=id,titulo'
     SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio    
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
-    response = r.get(req).json()
-    del response["responseHeader"]["params"]
-    return response
+    response = r.get(req).json().get('response')
+    docs = response.get('docs')
+    return docs
 
 """
 ENDPOINT: /search/proyectos/{query}.
