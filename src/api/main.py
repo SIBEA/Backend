@@ -78,6 +78,18 @@ async def search_proyectos_topk(query, num=10, inicio=0):
     docs = response.get('docs')
     return docs
 
+@app.get('/search/proyectos/{titulo}/topk')   
+async def search_proyectos_titulo_topk(query, num=10, inicio=0):
+    vector = embed(query)
+    SOLR_QUERY = 'select?q={!knn f=vector topK=11}'+str(vector.tolist())
+    SOLR_QUERY_ARGS = '&fl=id,titulo'
+    SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio    
+    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
+    response = r.get(req).json().get('response')
+    docs = response.get('docs')
+    docs.pop(0)
+    return docs
+
 """
 ENDPOINT: /search/proyectos/{query}.
 ARGUMENTOS:
