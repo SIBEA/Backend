@@ -301,7 +301,7 @@ async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtr
 
 
 #### Group Queries
-@app.get('/search/grupos/{query}/')   
+@app.get('/search/grupos/{query}')   
 async def search_grupos(query,num=10, inicio=0):
     if query.isspace() or query =='*':
         return 'No se encontraron resultados para la busqueda'
@@ -319,7 +319,7 @@ async def search_grupos(query,num=10, inicio=0):
             return 'No se encontraron resultados para la busqueda'
 
 
-@app.get('/grupos/{id}/')   
+@app.get('/grupos/{id}')   
 async def grupos(id):
     if id.isspace() or id =='*':
         return 'No se encontraron resultados para la busqueda'
@@ -351,7 +351,7 @@ async def grupos_total(query):
 #### Researchers Queries
 
 
-@app.get('/search/investigadores/{query}/')   
+@app.get('/search/investigadores/{query}')   
 async def search_investigadores(query,num=10, inicio=0):
     if query.isspace() or query =='*':
         return 'No se encontraron resultados para la busqueda'
@@ -368,7 +368,7 @@ async def search_investigadores(query,num=10, inicio=0):
             return 'No se encontraron resultados para la busqueda'
 
 
-@app.get('/investigadores/{id}/')   
+@app.get('/investigadores/{id}')   
 async def investigadores(id):
     if id.isspace() or id =='*':
         return 'No se encontraron resultados para la busqueda'
