@@ -110,7 +110,12 @@ async def search_proyectos(query, num=10, inicio=0):
     print(req)
     response = r.get(req).json()
     del response["responseHeader"]["params"]
-    return response
+    response = r.get(req).json().get('response')
+    docs = response.get('docs')
+    for doc in docs:
+        doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
+
+    return docs
 
 
 """
@@ -129,6 +134,11 @@ async def proyectos(id):
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS
     response = r.get(req).json()
     del response["responseHeader"]["params"]
+    response = r.get(req).json().get('response')
+    print(response)
+    doc = response.get('docs')[0]
+    doc['miembros'] = get_array_dict(doc['miembros'],'nombre')
+    doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
     return response
 
 """
@@ -244,6 +254,14 @@ async def grupos(id):
     doc = response.get('docs')[0]
     doc['proyectos'] = get_array_dict(doc['proyectos'],'titulo')
     doc['investigadores'] = get_array_dict(doc['investigadores'],'nombre')
+    return response
+
+@app.get('/grupos/{query}/total')   
+async def grupos_total(query):
+    SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query+' or investigadores:'+query
+    SOLR_QUERY_ARGS = '&fl=id,nombre'
+    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS
+    response = r.get(req).json().get('response')
     return response
 
 
