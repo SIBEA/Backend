@@ -230,7 +230,7 @@ async def search_grupos(query,num=10, inicio=0):
     SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query+' or investigadores:'+query
     SOLR_QUERY_ARGS = '&fl=id,nombre'
     SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio 
-    req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS
+    req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     response = r.get(req).json()
     return response
 
@@ -250,12 +250,12 @@ async def grupos(id):
 #### Researchers Queries
 
 
-@app.get('search/investigadores/{query}/')   
+@app.get('/search/investigadores/{query}/')   
 async def search_investigadores(query,num=10, inicio=0):
-    SOLR_QUERY = 'select?q=nombre:'+query+' or grupos:'+query+' or proyectos:'
+    SOLR_QUERY = 'select?q=nombre:'+query+' or grupos:'+query+' or proyectos:'+query
     SOLR_QUERY_ARGS = '&fl=id,nombre'
     SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio 
-    req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS
+    req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     response = r.get(req).json()
     return response
 
