@@ -112,9 +112,13 @@ async def search_proyectos(query, num=10, inicio=0):
     del response["responseHeader"]["params"]
     response = r.get(req).json().get('response')
     docs = response.get('docs')
+    print("@ASIDJSLKDJ!!!!!!!!!!!")
+    
     for doc in docs:
-        doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
-
+        #doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
+        if(doc['grupo'][0] != 'No asociado a grupos'):
+            print(doc['grupo'])
+            doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
     return docs
 
 
