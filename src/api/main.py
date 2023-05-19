@@ -130,7 +130,7 @@ async def proyectos(id):
     #probar con 3903
     SOLR_QUERY = 'select?q=id:'+id
     #Definir que otros argumentos entregar o que argumentos de aqui quitar
-    SOLR_QUERY_ARGS = '&fl=id,titulo, propuesta, fecha_inicio, fecha_fin, grupo, miembros, descripcion, obj_general, obj_especifico, metodologia, pertinencia, comunidades, ubicaciones'    
+    SOLR_QUERY_ARGS = '&fl=id,titulo, propuesta, fecha_inicio, fecha_fin, grupo, miembros, descripcion, obj_general, obj_especifico, metodologia, pertinencia, comunidades,sujeto_investigacion, ubicaciones'    
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS
     response = r.get(req).json()
     del response["responseHeader"]["params"]
