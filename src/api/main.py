@@ -40,7 +40,7 @@ app.add_middleware(
  
 SOLR_URL = 'http://solr:8983/solr/'
 SOLR_CORE_PROYECTOS = 'proyectos/'
-#SOLR_CORE_GRUPOS = 'grupos'
+SOLR_CORE_GRUPOS = 'grupos/'
 #SOLR_CORE_INVESTIGADORES = 'investigadores'
 
 @app.get('/')
@@ -108,7 +108,7 @@ Este endpoint se encarga de retornar los resultados generales para los proyectos
 @app.get('/search/proyectos/norerank/{query}')   
 async def search_proyectos_general_norerank(query, num=10, inicio=0):
     SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
-    SOLR_QUERY_ARGS = '&fl=title, descripcion,grupo, comunidades'
+    SOLR_QUERY_ARGS = '&fl=titulo, descripcion,grupo, comunidades'
     SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     print(req)
@@ -229,3 +229,29 @@ async def total_search_proyecto(query):
     #del response["responseHeader"]["params"]
     return response.get('numFound')
 
+
+
+#### Group Queries
+
+@app.get('search/grupos/{query}/')   
+async def search_groups(query):
+    SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query
+    SOLR_QUERY_ARGS = '&fl=id,nombre,proyectos'
+    req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS
+    response = r.get(req).json()
+    
+
+
+
+
+    return response
+
+
+@app.get('/grupos/{id}/')   
+async def search_groups_id(id):
+    'ddb6cbc8-0c01-46d2-bc2f-1fd79dce5370'
+    SOLR_QUERY = 'select?q=id:'+id
+    SOLR_QUERY_ARGS = '&fl=id,nombre,lider,email_lider, url_gruplac,proyectos,investigadores'
+    req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS
+    response = r.get(req).json()
+    return response
