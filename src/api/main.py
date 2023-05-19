@@ -277,9 +277,12 @@ async def search_grupos(query,num=10, inicio=0):
     SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio 
     req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     response = r.get(req).json().get('response')
-    docs = response.get('docs')
-    print(docs)
-    return docs
+    if(response.get('numFound')>0):
+        docs = response.get('docs')
+        print(docs)
+        return docs
+    else:
+        return 'No se encontraron resultados de busqueda'
 
 
 @app.get('/grupos/{id}/')   
@@ -288,10 +291,13 @@ async def grupos(id):
     SOLR_QUERY_ARGS = '&fl=id,nombre,lider,email_lider, url_gruplac,proyectos,investigadores'
     req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS
     response = r.get(req).json().get('response')
-    doc = response.get('docs')[0]
-    doc['proyectos'] = get_array_dict(doc['proyectos'],'titulo')
-    doc['investigadores'] = get_array_dict(doc['investigadores'],'nombre')
-    return response
+    if(response.get('numFound')>0):
+        doc = response.get('docs')[0]
+        doc['proyectos'] = get_array_dict(doc['proyectos'],'titulo')
+        doc['investigadores'] = get_array_dict(doc['investigadores'],'nombre')
+        return response
+    else:
+        return 'No se encontraron resultados de busqueda'
 
 @app.get('/grupos/{query}/total')   
 async def grupos_total(query):
@@ -312,8 +318,11 @@ async def search_investigadores(query,num=10, inicio=0):
     SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio 
     req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     response = r.get(req).json().get('response')
-    docs = response.get('docs')
-    return docs
+    if(response.get('numFound')>0):
+        docs = response.get('docs')
+        return docs
+    else:
+        return 'No se encontraron resultados de busqueda'
 
 
 @app.get('/investigadores/{id}/')   
@@ -322,16 +331,19 @@ async def investigadores(id):
     SOLR_QUERY_ARGS = '&fl=id,nombre,unidad_negocio,departamento,grupos,proyectos'
     req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS
     response = r.get(req).json().get('response')
-    doc = response.get('docs')[0]
-    doc['proyectos'] = get_array_dict(doc['proyectos'],'titulo')
-    doc['grupos'] = get_array_dict(doc['grupos'],'nombre')
-    print(type(doc))
-    return doc
+    if(response.get('numFound')>0):
+        doc = response.get('docs')[0]
+        doc['proyectos'] = get_array_dict(doc['proyectos'],'titulo')
+        doc['grupos'] = get_array_dict(doc['grupos'],'nombre')
+        print(type(doc))
+        return doc
+    else:
+        return 'No se encontraron resultados de busqueda'
 
 @app.get('/investigadores/{query}/total')   
 async def investigadores_total(query):
-    SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query+' or investigadores:'+query
+    SOLR_QUERY = 'select?q=nombre:'+query+' or grupos:'+query+' or proyectos:'+query
     SOLR_QUERY_ARGS = '&fl=id,nombre'
     req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS
     response = r.get(req).json().get('response')
-    return response
+    return response.get('numFound')
