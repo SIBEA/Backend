@@ -34,14 +34,14 @@ curl http://solr:8983/solr/grupos/schema -X POST -H 'Content-type:application/js
 "name":"investigadores",
 "type":"text_general",
 "indexed":true,
-"stored":false,
+"stored":true,
 "multiValued":true
 },
 {
 "name":"proyectos",
 "type":"text_general",
 "indexed":true,
-"stored":false,
+"stored":true,
 "multiValued":true
 }
 ]

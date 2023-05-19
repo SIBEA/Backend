@@ -41,12 +41,24 @@ app.add_middleware(
 SOLR_URL = 'http://solr:8983/solr/'
 SOLR_CORE_PROYECTOS = 'proyectos/'
 SOLR_CORE_GRUPOS = 'grupos/'
-#SOLR_CORE_INVESTIGADORES = 'investigadores'
+SOLR_CORE_INVESTIGADORES = 'investigadores/'
 
 @app.get('/')
 async def docs():
     response = RedirectResponse('docs')
     return response
+
+#Take string, split it and return dictionary
+def util_format(string_array,name):
+    new_dict = string_array.split(';')
+    return {'id':new_dict[0],name:new_dict[1]}
+
+def get_array_dict(list_items,name):
+    list_dict = []
+    for l in list_items:
+        list_dict.append(util_format(l,name))
+    return list_dict
+
 
 """
 ENDPOINT: /search/proyectos/topk/{query}.
@@ -88,29 +100,13 @@ DESCRIPCION:
      Posteriormente reordena los resultados de busqueda (reranking) en base a la similitud del embedding generado a partir del termino de consulta
 """
 @app.get('/search/proyectos/{query}')   
-async def search_proyectos_general(query, num=10, inicio=0):
+async def search_proyectos(query, num=10, inicio=0):
     SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
     SOLR_QUERY_ARGS = '&fl=id,titulo, descripcion,grupo, comunidades'
     vector = embed(query)
     SOLR_QUERY_RERANK = '&rq={!rerank reRankQuery=$rqq reRankWeight=1}&rqq={!knn f=vector topK=50}'+str(vector.tolist())
     SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_RERANK+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
-    print(req)
-    response = r.get(req).json()
-    del response["responseHeader"]["params"]
-    return response
-
-
-
-"""
-Este endpoint se encarga de retornar los resultados generales para los proyectos, NO HACE RERANKING, SOLO EXISTE PARA PRUEBAS
-"""
-@app.get('/search/proyectos/norerank/{query}')   
-async def search_proyectos_general_norerank(query, num=10, inicio=0):
-    SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
-    SOLR_QUERY_ARGS = '&fl=titulo, descripcion,grupo, comunidades'
-    SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio
-    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     print(req)
     response = r.get(req).json()
     del response["responseHeader"]["params"]
@@ -125,7 +121,7 @@ RETORNO:
     - Response con los parametros del proyecto de investigacion correspondiente al ID de entrada
 """
 @app.get('/proyectos/{id}')   
-async def detail_proyecto(id):
+async def proyectos(id):
     #probar con 3903
     SOLR_QUERY = 'select?q=id:'+id
     #Definir que otros argumentos entregar o que argumentos de aqui quitar
@@ -219,14 +215,11 @@ RETORNO:
     - Response con los parametros del proyecto de investigacion correspondiente al ID de entrada
 """
 @app.get('/proyectos/{query}/total')   
-async def total_search_proyecto(query):
+async def proyectos_total(query):
     SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
     SOLR_QUERY_ARGS = '&fl=titulo'
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS
-    #print(req)
     response = r.get(req).json().get('response')
-    #print(response.get('numFound'))
-    #del response["responseHeader"]["params"]
     return response.get('numFound')
 
 
@@ -234,24 +227,46 @@ async def total_search_proyecto(query):
 #### Group Queries
 
 @app.get('search/grupos/{query}/')   
-async def search_groups(query):
+async def search_grupos(query):
     SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query
     SOLR_QUERY_ARGS = '&fl=id,nombre,proyectos'
     req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS
     response = r.get(req).json()
-    
-
-
-
-
     return response
 
 
 @app.get('/grupos/{id}/')   
-async def search_groups_id(id):
-    'ddb6cbc8-0c01-46d2-bc2f-1fd79dce5370'
+async def grupos(id):
     SOLR_QUERY = 'select?q=id:'+id
     SOLR_QUERY_ARGS = '&fl=id,nombre,lider,email_lider, url_gruplac,proyectos,investigadores'
     req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS
+    response = r.get(req).json().get('response')
+    doc = response.get('docs')[0]
+    doc['proyectos'] = get_array_dict(doc['proyectos'],'titulo')
+    doc['investigadores'] = get_array_dict(doc['investigadores'],'nombre')
+    return response
+
+
+#### Researchers Queries
+
+
+@app.get('search/investigadores/{query}/')   
+async def search_investigadores(query):
+    SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query
+    SOLR_QUERY_ARGS = '&fl=id,nombre'
+    req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS
     response = r.get(req).json()
     return response
+
+
+@app.get('/investigadores/{id}/')   
+async def investigadores(id):
+    SOLR_QUERY = 'select?q=id:'+id
+    SOLR_QUERY_ARGS = '&fl=id,nombre,unidad_negocio,departamento,grupos,proyectos'
+    req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS
+    response = r.get(req).json().get('response')
+    doc = response.get('docs')[0]
+    doc['proyectos'] = get_array_dict(doc['proyectos'],'titulo')
+    doc['grupos'] = get_array_dict(doc['grupos'],'nombre')
+    print(type(doc))
+    return doc
