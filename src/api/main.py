@@ -8,23 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import numpy as np
 
-
-"""
-Checklist
-Endpoint general - Functional
-Endpoint topK - Functional
-Endpoint Coordenadas - Get all coordinates and return a list [Needs to be polished but its functional]
-Endpoint Comunidades - Get all communities and return a list [Needs to be polished but its functional]
-Endpoint Grupo particular - TODO
-Endpoint Investigador particular - TODO
-Endpoint Grupos -TODO
-Endpoint Investigadores - TODO
-Integrar Locust (definirlo en requirements.txt) - TODO 
-Definir pruebas de carga con Locust - TODO
-Realizar pruebas de endpoints con TestClient - TODO
-"""
-
-
 app = FastAPI()
 
 origins = ["*"]
@@ -168,7 +151,7 @@ RETORNO:
 @app.get('/proyectos/{id}')   
 async def proyectos(id):
     if id.isspace() or id in ID_CHARS:
-        return []
+        return None
     else:
         #probar con 3903
         SOLR_QUERY = 'select?q=id:'+id
@@ -267,7 +250,7 @@ async def search_proyectos_communities(query):
         
         df_test = pd.DataFrame(pd.value_counts(np.array(communities_resp)))        
         for index,row in df_test.iterrows():
-            val_normalized = (int(row[0]) - 1) / (205 - 1) * (5 - 1) + 1
+            #val_normalized = (int(row[0]) - 1) / (205 - 1) * (5 - 1) + 1
             word_cloud.append({'text':index,'value':1})
         print(word_cloud)
         return word_cloud
@@ -326,7 +309,7 @@ async def search_grupos(query,num=10, inicio=0):
 @app.get('/grupos/{id}')   
 async def grupos(id):
     if id.isspace() or id in ID_CHARS:
-        return []
+        return None
     else:
         SOLR_QUERY = 'select?q=id:'+id
         SOLR_QUERY_ARGS = '&fl=id,nombre,lider,email_lider, url_gruplac,proyectos,investigadores'
@@ -376,7 +359,7 @@ async def search_investigadores(query,num=10, inicio=0):
 @app.get('/investigadores/{id}')   
 async def investigadores(id):
     if id.isspace() or id in ID_CHARS:
-        return []
+        return None
     else:
         SOLR_QUERY = 'select?q=id:'+id
         SOLR_QUERY_ARGS = '&fl=id,nombre,unidad_negocio,departamento,grupos,proyectos'
