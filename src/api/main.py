@@ -8,23 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import numpy as np
 
-
-"""
-Checklist
-Endpoint general - Functional
-Endpoint topK - Functional
-Endpoint Coordenadas - Get all coordinates and return a list [Needs to be polished but its functional]
-Endpoint Comunidades - Get all communities and return a list [Needs to be polished but its functional]
-Endpoint Grupo particular - TODO
-Endpoint Investigador particular - TODO
-Endpoint Grupos -TODO
-Endpoint Investigadores - TODO
-Integrar Locust (definirlo en requirements.txt) - TODO 
-Definir pruebas de carga con Locust - TODO
-Realizar pruebas de endpoints con TestClient - TODO
-"""
-
-
 app = FastAPI()
 
 origins = ["*"]
@@ -42,6 +25,8 @@ SOLR_URL = 'http://solr:8983/solr/'
 SOLR_CORE_PROYECTOS = 'proyectos/'
 SOLR_CORE_GRUPOS = 'grupos/'
 SOLR_CORE_INVESTIGADORES = 'investigadores/'
+
+ID_CHARS = "!\"#$%&'()[]*+.-/:;<=>?@[\]^`{|}~"
 
 @app.get('/')
 async def docs():
@@ -69,8 +54,8 @@ RETORNO:
 """
 @app.get('/search/proyectos/topk/{query}')   
 async def search_proyectos_topk(query, num=10, inicio=0):
-    if query.isspace() or query =='*':
-        return ''
+    if query.isspace() or query in ID_CHARS:
+        return []
     else:
         vector = embed(query)
         SOLR_QUERY = 'select?q={!knn f=vector topK=10}'+str(vector.tolist())
@@ -84,7 +69,7 @@ async def search_proyectos_topk(query, num=10, inicio=0):
 @app.get('/search/proyectos/{titulo}/topk')   
 async def search_proyectos_titulo_topk(query, num=10, inicio=0):
     if query.isspace() or query =='*':
-        return ''
+        return 'No se encontraron resultados para la busqueda'
     else:
         vector = embed(query)
         SOLR_QUERY = 'select?q={!knn f=vector topK=11}'+str(vector.tolist())
@@ -119,10 +104,11 @@ DESCRIPCION:
 """
 @app.get('/search/proyectos/{query}')   
 async def search_proyectos(query, num=10, inicio=0,propuesta = '', estado='',comunidades='sin_filtrar'):
-    if query.isspace() or query =='*':
-        return ''
+    if query.isspace() or query in ID_CHARS:
+        return []
     else:
-        SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
+        #SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
+        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=titulo + descripcion + obj_general + obj_especifico + metodologia + pertinencia'
         #SOLR_QUERY_FILTERS = ' and propuesta:'+propuesta+' and estado:'+estado
         SOLR_QUERY_FILTERS =''
         if propuesta:
@@ -152,7 +138,7 @@ async def search_proyectos(query, num=10, inicio=0,propuesta = '', estado='',com
                     doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
             return docs
         else:
-            return "No se encontraron resultados para la busqueda"
+            return []
 
 
 """
@@ -164,8 +150,8 @@ RETORNO:
 """
 @app.get('/proyectos/{id}')   
 async def proyectos(id):
-    if id.isspace():
-        return ''
+    if id.isspace() or id in ID_CHARS:
+        return None
     else:
         #probar con 3903
         SOLR_QUERY = 'select?q=id:'+id
@@ -186,7 +172,7 @@ async def proyectos(id):
                     doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
             return doc
         else:
-            return 'No se encontraron resultados para la busqueda'
+            return []
 
 """
 ENDPOINT: /search/proyectos/coordinates/{query}.
@@ -197,10 +183,10 @@ RETORNO:
 """
 @app.get('/search/proyectos/coordinates/{query}')
 async def search_proyectos_coordinates(query):
-    if query.isspace() or query =='*':
-        return ''
+    if query.isspace() or query in ID_CHARS:
+        return []
     else:
-        SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
+        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=titulo + descripcion + obj_general + obj_especifico + metodologia + pertinencia'
         SOLR_QUERY_ARGS = '&fl=ubicaciones,titulo,id'
         SOLR_QUERY_PAG = '&rows='+str(999)
         SOLR_QUERY_REMOVE_NAN = ' and -ubicaciones:nan'
@@ -236,14 +222,14 @@ RETORNO:
 """
 @app.get('/search/proyectos/communities/{query}')
 async def search_proyectos_communities(query):
-    if query.isspace():
-        return ''
+    if query.isspace() or query in ID_CHARS:
+        return []
     else:
     #La eliminacion de stopwords deberia realizarse durante la fase de indexado de informacion, esto es temporal
         stopwords = open('stopwords.txt').readlines()
         stopwords = [word.strip() for word in stopwords]
         print(f'stopwords: {stopwords}')
-        SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
+        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=titulo + descripcion + obj_general + obj_especifico + metodologia + pertinencia'
         SOLR_QUERY_REMOVE_NAN = ' and -comunidades:NAN'
         SOLR_QUERY_ARGS = '&fl=comunidades'
         SOLR_QUERY_PAG = '&rows='+str(999)
@@ -264,7 +250,7 @@ async def search_proyectos_communities(query):
         
         df_test = pd.DataFrame(pd.value_counts(np.array(communities_resp)))        
         for index,row in df_test.iterrows():
-            val_normalized = (int(row[0]) - 1) / (205 - 1) * (5 - 1) + 1
+            #val_normalized = (int(row[0]) - 1) / (205 - 1) * (5 - 1) + 1
             word_cloud.append({'text':index,'value':1})
         print(word_cloud)
         return word_cloud
@@ -279,10 +265,10 @@ RETORNO:
 """
 @app.get('/proyectos/{query}/total')   
 async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtrar'):
-    if query.isspace():
-        return ''
+    if query.isspace() or query in ID_CHARS:
+        return []
     else:
-        SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
+        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=titulo + descripcion + obj_general + obj_especifico + metodologia + pertinencia'
         SOLR_QUERY_ARGS = '&fl=titulo'
         SOLR_QUERY_FILTERS =''
         if propuesta:
@@ -301,12 +287,13 @@ async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtr
 
 
 #### Group Queries
-@app.get('/search/grupos/{query}/')   
+@app.get('/search/grupos/{query}')   
 async def search_grupos(query,num=10, inicio=0):
-    if query.isspace() or query =='*':
-        return 'No se encontraron resultados para la busqueda'
+    if query.isspace() or query in ID_CHARS:
+        return []
     else:
-        SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query+' or investigadores:'+query
+        #SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query+' or investigadores:'+query
+        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=nombre + proyectos + investigadores'
         SOLR_QUERY_ARGS = '&fl=id,nombre'
         SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio 
         req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
@@ -316,13 +303,13 @@ async def search_grupos(query,num=10, inicio=0):
             print(docs)
             return docs
         else:
-            return 'No se encontraron resultados para la busqueda'
+            return []
 
 
-@app.get('/grupos/{id}/')   
+@app.get('/grupos/{id}')   
 async def grupos(id):
-    if id.isspace() or id =='*':
-        return 'No se encontraron resultados para la busqueda'
+    if id.isspace() or id in ID_CHARS:
+        return None
     else:
         SOLR_QUERY = 'select?q=id:'+id
         SOLR_QUERY_ARGS = '&fl=id,nombre,lider,email_lider, url_gruplac,proyectos,investigadores'
@@ -334,14 +321,14 @@ async def grupos(id):
             doc['investigadores'] = get_array_dict(doc['investigadores'],'nombre')
             return response
         else:
-            return 'No se encontraron resultados para la busqueda'
+            return []
 
 @app.get('/grupos/{query}/total')   
 async def grupos_total(query):
-    if query.isspace():
-        return 'No se encontraron resultados para la busqueda'
+    if query.isspace() or query in ID_CHARS:
+        return []
     else:
-        SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query+' or investigadores:'+query
+        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=nombre + proyectos + investigadores'
         SOLR_QUERY_ARGS = '&fl=id,nombre'
         req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS
         response = r.get(req).json().get('response')
@@ -351,12 +338,13 @@ async def grupos_total(query):
 #### Researchers Queries
 
 
-@app.get('/search/investigadores/{query}/')   
+@app.get('/search/investigadores/{query}')   
 async def search_investigadores(query,num=10, inicio=0):
-    if query.isspace() or query =='*':
-        return 'No se encontraron resultados para la busqueda'
+    if query.isspace() or query in ID_CHARS:
+        return []
     else:
-        SOLR_QUERY = 'select?q=nombre:'+query+' or grupos:'+query+' or proyectos:'+query
+        #SOLR_QUERY = 'select?q=nombre:'+query+' or grupos:'+query+' or proyectos:'+query
+        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=nombre + grupos + proyectos'
         SOLR_QUERY_ARGS = '&fl=id,nombre'
         SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio 
         req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
@@ -365,13 +353,13 @@ async def search_investigadores(query,num=10, inicio=0):
             docs = response.get('docs')
             return docs
         else:
-            return 'No se encontraron resultados para la busqueda'
+            return []
 
 
-@app.get('/investigadores/{id}/')   
+@app.get('/investigadores/{id}')   
 async def investigadores(id):
-    if id.isspace() or id =='*':
-        return 'No se encontraron resultados para la busqueda'
+    if id.isspace() or id in ID_CHARS:
+        return None
     else:
         SOLR_QUERY = 'select?q=id:'+id
         SOLR_QUERY_ARGS = '&fl=id,nombre,unidad_negocio,departamento,grupos,proyectos'
@@ -384,15 +372,15 @@ async def investigadores(id):
             print(type(doc))
             return doc
         else:
-            return 'No se encontraron resultados para la busqueda'
+            return []
 
 
 @app.get('/investigadores/{query}/total')   
 async def investigadores_total(query):
-    if query.isspace():
-        return 'No se encontraron resultados para la busqueda'
+    if query.isspace() or query in ID_CHARS:
+        return []
     else:
-        SOLR_QUERY = 'select?q=nombre:'+query+' or grupos:'+query+' or proyectos:'+query
+        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=nombre + grupos + proyectos'
         SOLR_QUERY_ARGS = '&fl=id,nombre'
         req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS
         response = r.get(req).json().get('response')
