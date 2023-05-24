@@ -1,1 +1,0 @@
-Aqui van los notebooks de jupyter, en caso de que sea necesario hacer mas prototipado
