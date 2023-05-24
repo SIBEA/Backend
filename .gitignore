@@ -6,4 +6,6 @@ src/src.egg-info/
 **/solr-data
 **/testing
 src/nlp/testing/csv/corpus.csv
+data/solr
+solr-data/
 /env

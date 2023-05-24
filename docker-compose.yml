@@ -1,18 +1,30 @@
 version: '3'
 services:
+  initializer:
+      image: alpine
+      container_name: solr-initializer
+      restart: "no"
+      entrypoint: |
+        /bin/sh -c "chown 8983:8983 /solr"
+      volumes:
+        - ./data/solr:/solr
+
   fastapi:
     container_name: fastapi
     build: ./src/api
     #command: bash -c "pip install -e . && cd api && source /home/setup/delete_cores_curl.sh && uvicorn main:app --host 0.0.0.0"
-    command: bash -c "pip install -e . && cd api && sleep 15 && source /home/setup/curl/startup_cores.sh && uvicorn main:app --host 0.0.0.0"
+    command: bash -c "pip install -e . && cd api && sleep 15 && source /home/setup/curl/startup_cores.sh && uvicorn main:app --reload --host 0.0.0.0"
     #command: bash -c "pip install -e . && cd api && uvicorn main:app --host 0.0.0.0"
     volumes:
       - ./src/:/app/
-      - ./solr-setup:/home/setup
-      - ./embeddings:/home/embeddings
+      - ./solr-setup/curl:/home/setup/curl
+      - ./documents:/home/documents
     ports:
       - "8000:8000"
     restart: always
+    depends_on:
+      initializer:
+        condition: service_completed_successfully
 
   solr:
     container_name: solr
@@ -23,12 +35,14 @@ services:
     depends_on:
       - fastapi
     volumes:
-      - ./solr-data:/var/solr
-      - ./solr-setup:/home/setup
-      - ./embeddings:/home/embeddings
+      - ./data/solr:/var/solr
+      - ./solr-setup/curl:/home/setup/curl
+      - ./documents:/home/documents
+      #- ./embeddings:/home/embeddings
     environment:
       - SOLR_OPTS=-Dsolr.jetty.request.header.size=65535
     restart: always
+
     
   #nlp:
   #  container_name: nlp
