@@ -14,10 +14,11 @@ Salida: Docs resultado del topk
 def get_knn_results(vector,topk):
     
     SOLR_QUERY = 'select?q={!knn f=vector topK='+str(topk)+'}'+str(vector.tolist())
-    SOLR_QUERY_ARGS = '&fl=id,titulo'
+    SOLR_QUERY_ARGS = '&fl=id,titulo&rows='+str(topk)
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS
     response = r.get(req).json().get('response')
     docs = response.get('docs')
+    #print(len(docs))
     return docs
 
 def get_projects_results(query, num=10, inicio=0, propuesta = '', estado = '', comunidades = 'sin_filtrar', args = 'none'):
@@ -34,13 +35,14 @@ def get_projects_results(query, num=10, inicio=0, propuesta = '', estado = '', c
     if args == 'comunidad':
         SOLR_QUERY_ARGS = '&fl=comunidades & fq = -comunidades:NAN'    
     elif args == 'ubicacion':
-        SOLR_QUERY_ARGS = '&fl=comunidades & fq = -ubicaciones:nan'  
+        SOLR_QUERY_ARGS = '&fl=id,titulo,ubicaciones & fq = -ubicaciones:nan'  
     else:
         SOLR_QUERY_ARGS = '&fl=id,titulo, propuesta, fecha_inicio, fecha_fin, grupo, miembros, descripcion, obj_general, obj_especifico, metodologia, pertinencia, comunidades,sujeto_investigacion, ubicaciones'
 
     SOLR_QUERY_PAG = '&rows='+str(num)+'&start='+str(inicio) 
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_FILTERS+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     response = r.get(req).json().get('response')
+    #print(req)
     return response
 
 def get_project_by_id(id):

@@ -1,10 +1,61 @@
 curl -X POST -H 'Content-Type: application/json' 'http://solr:8983/solr/admin/cores?action=CREATE&name=grupos&configSet=grupos'
 
+curl http://solr:8983/solr/grupos/schema -X POST -H 'Content-Type: application/json' --data-binary '{
+  "add-field-type" : {
+    "name":"text_custom",
+    "class":"solr.TextField",
+    "omitNorms":"false",
+    "analyzer" : {
+      "type" : "index",
+      "tokenizer" : {
+        "class":"solr.WhitespaceTokenizerFactory"
+      },
+      "filters" : [
+        {
+          "class":"solr.LowerCaseFilterFactory"
+        },
+        {
+          "class":"solr.ASCIIFoldingFilterFactory",
+          "preserveOriginal":true
+        },
+        {
+          "class":"solr.EdgeNGramFilterFactory",
+          "minGramSize":"4",
+          "maxGramSize":"4",
+          "preserveOriginal":"true"
+        }
+      ]
+    },
+    "analyzer" : {
+      "type" : "query",
+      "tokenizer" : {
+        "class":"solr.WhitespaceTokenizerFactory"
+      },
+      "filters" : [
+        {
+          "class":"solr.LowerCaseFilterFactory"
+        },
+        {
+          "class":"solr.ASCIIFoldingFilterFactory",
+          "preserveOriginal":true
+        },
+        {
+          "class":"solr.EdgeNGramFilterFactory",
+          "minGramSize":"4",
+          "maxGramSize":"4",
+          "preserveOriginal":"true"
+        }
+      ]
+    }
+  }
+}' 
+
+
 curl http://solr:8983/solr/grupos/schema -X POST -H 'Content-type:application/json' --data-binary '{
 "add-field" : [
 {
 "name":"nombre",
-"type":"text_general",
+"type":"text_custom",
 "multiValued":false,
 "stored":true,
 "large":true
@@ -32,14 +83,14 @@ curl http://solr:8983/solr/grupos/schema -X POST -H 'Content-type:application/js
 },
 {
 "name":"investigadores",
-"type":"text_general",
+"type":"text_custom",
 "indexed":true,
 "stored":true,
 "multiValued":true
 },
 {
 "name":"proyectos",
-"type":"text_general",
+"type":"text_custom",
 "indexed":true,
 "stored":true,
 "multiValued":true
