@@ -79,7 +79,7 @@ def remove_duplicates_knn(results,top10):
         for result in results:
             if item.get('id') == result.get('id'):
                 results.remove(result)
-                print('ESTAAAA')
+               # print('ESTAAAA')
     return results
 
 
@@ -143,12 +143,14 @@ async def search_proyectos(query, num=10, inicio=0,propuesta = '', estado='',com
         vector = modelo_embeddings.embed(query)
         docs_vector = solr_client.get_knn_results(vector,10)
         docs_vector =  fill_topk_values(docs_vector)
-        print(docs_vector)
-
+        #print(docs_vector)
+        print(f'INICIOOOO {type(inicio)}')
         if(response.get('numFound')>0):
             docs = response.get('docs')
             docs = remove_duplicates_knn(docs,docs_vector)    
-            docs = docs_vector+docs
+            if inicio == '0':
+                print('AAAAAAAAAAAAAAAAAAAA')
+                docs = docs_vector+docs
             for doc in docs:
                 #doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
                 if(doc['grupo'][0] != 'No asociado a grupos'):
@@ -285,7 +287,7 @@ async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtr
         return []
     else:
         response = solr_client.get_projects_results(query,10,0,propuesta,estado,comunidades)
-        return response.get('numFound')
+        return response.get('numFound')+10
 
 
 
