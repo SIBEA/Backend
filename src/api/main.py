@@ -276,7 +276,7 @@ async def search_proyectos_communities(query):
             for com in communities_doc:
                 com_split = com.split(' ')            
                 for word in com_split:
-                    if word.lower()  not in stopwords and word.isnumeric()==False and word:
+                    if word.lower()  not in stopwords and word.isnumeric()==False and len(word)>2 and word:
                         communities_resp.append(word.lower())       
         word_cloud =[]
         
