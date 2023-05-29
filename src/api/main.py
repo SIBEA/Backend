@@ -56,10 +56,12 @@ def validate_input(input):
 def format_query(query):
     return '\"'+query+'\"'
 
+
 def fill_topk_values(topk):
     for item in topk:
         doc = solr_client.get_project_by_id(item.get('id')).get('docs')[0]
         item['propuesta']  = doc.get('propuesta')
+        item['estado']  = doc.get('estado')
         item['fecha_inicio'] =  doc.get('fecha_inicio')
         item['fecha_fin'] = doc.get('fecha_fin')
         item['grupo'] = doc.get('grupo')
@@ -75,10 +77,16 @@ def fill_topk_values(topk):
     return topk
 
 def remove_duplicates_knn(results,top10):
+    print(f'original size {len(results)}')
     for item in top10:
         for result in results:
+           #id1 = item.get('id')
+            #id2 = result.get('id')
+            #print(f'{id1} {id2}')
             if item.get('id') == result.get('id'):
+                #print('equal, deleting')
                 results.remove(result)
+                #$print(f'new size {len(results)}')
                # print('ESTAAAA')
     return results
 
@@ -131,32 +139,45 @@ DESCRIPCION:
         - ubicaciones
      Posteriormente reordena los resultados de busqueda (reranking) en base a la similitud del embedding generado a partir del termino de consulta
 """
+def get_general_results(query,num,inicio,propuesta,estado,comunidades):
+    response = solr_client.get_projects_results(query,3000,0,propuesta,estado,comunidades)
+    found = response.get('numFound')
+    docs = solr_client.get_projects_results(query,found,0,propuesta,estado,comunidades).get('docs')
+    return docs
+
+
+
 @app.get('/search/proyectos/{query}')   
 async def search_proyectos(query, num=10, inicio=0,propuesta = '', estado='',comunidades='sin_filtrar'):
     if query.isspace() or query in ID_CHARS:
         return []
     else:
         query = format_query(query)
-        response = solr_client.get_projects_results(query,num,inicio,propuesta,estado,comunidades)
+        response = solr_client.get_projects_results(query,3000,inicio,propuesta,estado,comunidades)
         #print('RESPONSEEE')
         #print(response)
         vector = modelo_embeddings.embed(query)
-        docs_vector = solr_client.get_knn_results(vector,10)
+        docs_vector = solr_client.get_knn_results(vector,10,propuesta,estado,comunidades)
+        #docs_vector =  fill_topk_values(docs_vector)
         docs_vector =  fill_topk_values(docs_vector)
+        
         #print(docs_vector)
         print(f'INICIOOOO {type(inicio)}')
         if(response.get('numFound')>0):
-            docs = response.get('docs')
+            docs = get_general_results(query,num,inicio,propuesta,estado,comunidades)
             docs = remove_duplicates_knn(docs,docs_vector)    
-            if inicio == '0':
-                print('AAAAAAAAAAAAAAAAAAAA')
-                docs = docs_vector+docs
+            print(f'LEN OF DOCS: {len(docs)} LEN OF KNN: {len(docs_vector)}')
+            docs = docs = docs_vector+docs            
             for doc in docs:
                 #doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
                 if(doc['grupo'][0] != 'No asociado a grupos'):
                     #print(doc['grupo'])
                     doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
-            return docs
+            lower = int(inicio)
+            upper = int(inicio)+int(num)
+            sublist = docs[lower:upper]
+            print(f'LEN OF DOCS: {len(docs)} LOWER {lower} UPPER {upper} NEWLEN {len(sublist)}')
+            return docs[lower:upper]
         else:
             return docs_vector
 
@@ -203,11 +224,8 @@ async def search_proyectos_coordinates(query):
         response = solr_client.get_projects_results(query,2000,0,args ='ubicacion')
         docs = response.get('docs')
         vector = modelo_embeddings.embed(query)
-        docs_vector = solr_client.get_knn_results(vector,10)
+        docs_vector = solr_client.get_knn_results(vector,10,args ='ubicacions')
         docs_vector = fill_topk_values(docs_vector)
-        for doc in docs_vector:
-            if doc.get('ubicaciones') == 'nan':
-                docs_vector.remove(doc)
         docs = remove_duplicates_knn(docs,docs_vector)    
         docs = docs_vector+docs
         coordinates = []
@@ -244,15 +262,12 @@ async def search_proyectos_communities(query):
         query = format_query(query)
         stopwords = open('stopwords.txt').readlines()
         stopwords = [word.strip() for word in stopwords]        
-        response = solr_client.get_projects_results(query,2000,0,args ='comunidad')        
-        #Se debe implementar un modulo que gestione todo el postprocesamiento de las respuestas que entrega Solr
+        response = solr_client.get_projects_results(query,2000,0,args ='comunidad')                
         docs = response.get('docs')
         vector = modelo_embeddings.embed(query)
-        docs_vector = solr_client.get_knn_results(vector,10)
+        docs_vector = solr_client.get_knn_results(vector,10,args ='comunidad')   
+        print(f'LENLENLEN {len(docs_vector)}') 
         docs_vector = fill_topk_values(docs_vector)
-        for doc in docs_vector:
-            if doc.get('comunidad') == 'NAN':
-                docs_vector.remove(doc)
         docs = remove_duplicates_knn(docs,docs_vector)    
         docs = docs_vector+docs
         communities_resp = []
@@ -286,8 +301,14 @@ async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtr
     if query.isspace() or query in ID_CHARS:
         return []
     else:
-        response = solr_client.get_projects_results(query,10,0,propuesta,estado,comunidades)
-        return response.get('numFound')+10
+        #response = solr_client.get_projects_results(query,10,0,propuesta,estado,comunidades)
+        vector = modelo_embeddings.embed(query)
+        docs_vector = solr_client.get_knn_results(vector,10,propuesta,estado,comunidades)    
+        docs_vector = fill_topk_values(docs_vector)
+        docs = get_general_results(query,10,0,propuesta,estado,comunidades)
+        docs = remove_duplicates_knn(docs,docs_vector)    
+        docs = docs = docs_vector+docs
+        return len(docs)
 
 
 

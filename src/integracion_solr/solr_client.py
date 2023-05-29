@@ -11,12 +11,31 @@ Retorna el resultado de realizar la busqueda KNN a solr
 Entrada: embedding
 Salida: Docs resultado del topk
 """
-def get_knn_results(vector,topk):
+def get_knn_results(vector,topk,propuesta ='',estado='',comunidades='sin_filtrar',args = 'none'):
     
-    SOLR_QUERY = 'select?q={!knn f=vector topK='+str(topk)+'}'+str(vector.tolist())
-    SOLR_QUERY_ARGS = '&fl=id,titulo&rows='+str(topk)
-    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS
+    SOLR_QUERY = 'select?q={!knn f=vector topK='+str(topk)+'}'+str(vector.tolist())    
+    SOLR_QUERY_FILTERS =''
+    if propuesta:
+        print('propuesta')
+        SOLR_QUERY_FILTERS+='&fq=propuesta:'+propuesta
+    if estado:
+        print('estado')
+        SOLR_QUERY_FILTERS+='&fq=estado:'+estado
+    if comunidades == 'con_comunidades':
+        print('con comunidades')
+        SOLR_QUERY_FILTERS+='&fq=-comunidades:NAN'
+    if comunidades == 'sin_comunidades':
+        print('sin   comunidades')
+        SOLR_QUERY_FILTERS+='&fq=comunidades:NAN'
+    if args == 'comunidad':
+        SOLR_QUERY_ARGS = '&fl=id,comunidades & fq = -comunidades:NAN'    
+    elif args == 'ubicacion':
+        SOLR_QUERY_ARGS = '&fl=id,titulo,ubicaciones & fq = -ubicaciones:nan'  
+    else:
+        SOLR_QUERY_ARGS = '&fl=id,titulo,propuesta&rows=10'
+    req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_FILTERS+SOLR_QUERY_ARGS
     response = r.get(req).json().get('response')
+    print(response)
     docs = response.get('docs')
     #print(len(docs))
     return docs
@@ -48,7 +67,7 @@ def get_projects_results(query, num=10, inicio=0, propuesta = '', estado = '', c
 def get_project_by_id(id):
     SOLR_QUERY = 'select?q=id:'+id
     #Definir que otros argumentos entregar o que argumentos de aqui quitar
-    SOLR_QUERY_ARGS = '&fl=id,titulo, propuesta, fecha_inicio, fecha_fin, grupo, miembros, descripcion, obj_general, obj_especifico, metodologia, pertinencia, comunidades,sujeto_investigacion, ubicaciones'    
+    SOLR_QUERY_ARGS = '&fl=id,titulo,estado, propuesta, fecha_inicio, fecha_fin, grupo, miembros, descripcion, obj_general, obj_especifico, metodologia, pertinencia, comunidades,sujeto_investigacion, ubicaciones'    
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS
     response = r.get(req).json().get('response')
     return response
