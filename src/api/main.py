@@ -54,7 +54,7 @@ def validate_input(input):
     return True
 
 def format_query(query):
-    return '\"'+query+'\"'
+    return '\"'+query.lower()+'\"'
 
 
 def fill_topk_values(topk):
