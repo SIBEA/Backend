@@ -106,7 +106,9 @@ async def search_proyectos_topk(query, num=10, inicio=0):
     else:
         vector = modelo_embeddings.embed(query)
         docs = solr_client.get_knn_results(vector,20)
-        return docs[10::]
+        print('RESULTADOS VECTORIAL')
+        print(docs)
+        return docs[10:len(docs)]
 
 @app.get('/search/proyectos/{titulo}/topk')   
 async def search_proyectos_titulo_topk(query, num=10, inicio=0):

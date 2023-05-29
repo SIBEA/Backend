@@ -32,10 +32,10 @@ def get_knn_results(vector,topk,propuesta ='',estado='',comunidades='sin_filtrar
     elif args == 'ubicacion':
         SOLR_QUERY_ARGS = '&fl=id,titulo,ubicaciones & fq = -ubicaciones:nan'  
     else:
-        SOLR_QUERY_ARGS = '&fl=id,titulo,propuesta&rows=10'
+        SOLR_QUERY_ARGS = '&fl=id,titulo,propuesta&rows='+str(topk)
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_FILTERS+SOLR_QUERY_ARGS
     response = r.get(req).json().get('response')
-    print(response)
+    #print(response)
     docs = response.get('docs')
     #print(len(docs))
     return docs
