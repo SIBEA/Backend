@@ -110,15 +110,15 @@ def filter_knn_response(doc_vector,propuesta='',estado='',comunidades='sin_comun
             estado_filter = estado_doc
         else:
             estado_filter = estado[1:-1]
-        if comunidades == 'sin_filtrar':
-            com_filter = com_doc
-        elif comunidades == 'sin_comunidades':
+        if comunidades == 'sin_comunidades':
             com_filter = ['NAN']
         elif comunidades == 'con_comunidades':
             if com_doc != ['NAN']:
                 com_filter == com_doc
             else:
                 com_filter = []
+        else:
+            com_filter = com_doc
         print('doc')
         print(f'prop {prop_doc} estado {estado_doc} comunidades {com_doc}')
         print('filter')
@@ -288,7 +288,7 @@ async def search_proyectos_communities(query):
         response = solr_client.get_projects_results(query,2000,0,args ='comunidad')                
         docs = response.get('docs')
         vector = modelo_embeddings.embed(query)
-        docs_vector = make_knn_query(vector,10)
+        docs_vector = make_knn_query(vector,10,comunidades = 'con_comunidades')
         print(f'LENLENLEN {len(docs_vector)}') 
         docs = docs_vector+docs
         communities_resp = []
