@@ -45,7 +45,7 @@ def get_projects_results(query, num=10, inicio=0, propuesta = '', estado = '', c
     SOLR_QUERY_PAG = '&rows='+str(num)+'&start='+str(inicio) 
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_FILTERS+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     response = r.get(req).json().get('response')
-    #print(req)
+    print(req)
     return response
 
 def get_project_by_id(id):

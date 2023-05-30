@@ -163,7 +163,7 @@ async def search_proyectos_topk(query, num=10, inicio=0):
         vector = modelo_embeddings.embed(query)
         docs = solr_client.get_knn_results(vector,20)
         print('RESULTADOS VECTORIAL')
-        print(docs)
+        #print(docs)
         return docs[10:len(docs)]
 
 @app.get('/search/proyectos/{titulo}/topk')   
@@ -188,10 +188,15 @@ async def search_proyectos(query, num=10, inicio=0,propuesta = '', estado='',com
         docs_vector = make_knn_query(vector,10,propuesta,estado,comunidades)
         
         #print(docs_vector)
+        found = response.get('numFound')
+        print(f'RESPONSE NUMFOUND: {found}')
         print(f'INICIOOOO {type(inicio)}')
         if(response.get('numFound')>0):
             docs = get_general_results(query,num,inicio,propuesta,estado,comunidades)
+            print('BEFORE REMOVING DUPLICATES')
+            print(f'LEN OF DOCS: {len(docs)} LEN OF KNN: {len(docs_vector)}')
             docs = remove_duplicates_knn(docs,docs_vector)    
+            print('AFTER REMOVING DUPLICATES')
             print(f'LEN OF DOCS: {len(docs)} LEN OF KNN: {len(docs_vector)}')
             docs = docs = docs_vector+docs            
             for doc in docs:
@@ -226,9 +231,9 @@ async def proyectos(id):
             doc = response.get('docs')[0]
             doc['miembros'] = get_array_dict(doc['miembros'],'nombre')
             #doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
-            print(doc['grupo'])
+            #print(doc['grupo'])
             if(doc['grupo'][0] != 'No asociado a grupos'):
-                    print(doc['grupo'])
+                    #print(doc['grupo'])
                     doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
             return doc
         else:
@@ -319,11 +324,11 @@ RETORNO:
     - Response con los parametros del proyecto de investigacion correspondiente al ID de entrada
 """
 @app.get('/proyectos/{query}/total')   
-async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtrar'):
-    query = format_query(query)
+async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtrar'):    
     if validate_input(query) == False:
         return []
     else:
+        query = format_query(query)
         #response = solr_client.get_projects_results(query,10,0,propuesta,estado,comunidades)
         vector = modelo_embeddings.embed(query)
         docs_vector = make_knn_query(vector,10,propuesta,estado,comunidades)
@@ -344,7 +349,7 @@ async def search_grupos(query,num=10, inicio=0):
         response = solr_client.get_groups_results(query,num,inicio)
         if(response.get('numFound')>0):
             docs = response.get('docs')
-            print(docs)
+            #print(docs)
             return docs
         else:
             return []
