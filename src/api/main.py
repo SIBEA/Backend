@@ -9,8 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import numpy as np
 
-import re
-
 app = FastAPI()
 
 origins = ["*"]
@@ -24,6 +22,7 @@ app.add_middleware(
 )
 
 
+ 
 SOLR_URL = 'http://solr:8983/solr/'
 SOLR_CORE_PROYECTOS = 'proyectos/'
 SOLR_CORE_GRUPOS = 'grupos/'
@@ -33,7 +32,10 @@ ID_CHARS = "!\"#$%&'()[]*+.-/:;<=>?@[\]^`{|}~"
 
 modelo_embeddings = Transformer()
 
-
+@app.get('/')
+async def docs():
+    response = RedirectResponse('docs')
+    return response
 
 #Take string, split it and return dictionary
 def util_format(string_array,name):
@@ -47,9 +49,9 @@ def get_array_dict(list_items,name):
     return list_dict
 
 def validate_input(input):
-    if re.match('[a-zA-Z\s]+$', input):
-        return True
-    return False
+    if input.isspace() or input in ID_CHARS or input =='*':
+        return False
+    return True
 
 def format_query(query):
     return '\"'+query.lower()+'\"'
@@ -144,12 +146,6 @@ def get_general_results(query,num,inicio,propuesta,estado,comunidades):
     return docs
 
 
-
-@app.get('/')
-async def docs():
-    response = RedirectResponse('docs')
-    return response
-
 """
 ENDPOINT: /search/proyectos/topk/{query}.
 ARGUMENTOS:
@@ -159,7 +155,7 @@ RETORNO:
 """
 @app.get('/search/proyectos/topk/{query}')   
 async def search_proyectos_topk(query, num=10, inicio=0):
-    if validate_input(query)==False:
+    if query.isspace() or query in ID_CHARS:
         return []
     else:
         vector = modelo_embeddings.embed(query)
@@ -170,8 +166,8 @@ async def search_proyectos_topk(query, num=10, inicio=0):
 
 @app.get('/search/proyectos/{titulo}/topk')   
 async def search_proyectos_titulo_topk(query, num=10, inicio=0):
-    if validate_input(query)==False:
-        return []
+    if query.isspace() or query =='*':
+        return 'No se encontraron resultados para la busqueda'
     else:
         vector = modelo_embeddings.embed(query)
         docs = solr_client.get_knn_results(vector,11)
@@ -181,7 +177,7 @@ async def search_proyectos_titulo_topk(query, num=10, inicio=0):
 
 @app.get('/search/proyectos/{query}')   
 async def search_proyectos(query, num=10, inicio=0,propuesta = '', estado='',comunidades='sin_filtrar'):
-    if validate_input(query)==False:
+    if query.isspace() or query in ID_CHARS:
         return []
     else:
         query = format_query(query)
@@ -245,7 +241,7 @@ RETORNO:
 """
 @app.get('/search/proyectos/coordinates/{query}')
 async def search_proyectos_coordinates(query):
-    if validate_input(query)==False:
+    if query.isspace() or query in ID_CHARS:
         return []
     else:
         query = format_query(query)
@@ -282,7 +278,7 @@ RETORNO:
 """
 @app.get('/search/proyectos/communities/{query}')
 async def search_proyectos_communities(query):
-    if validate_input(query)==False:
+    if query.isspace() or query in ID_CHARS:
         return []
     else:
     #La eliminacion de stopwords deberia realizarse durante la fase de indexado de informacion, esto es temporal
@@ -323,7 +319,7 @@ RETORNO:
 @app.get('/proyectos/{query}/total')   
 async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtrar'):
     query = format_query(query)
-    if validate_input(query)==False:
+    if query.isspace() or query in ID_CHARS:
         return []
     else:
         #response = solr_client.get_projects_results(query,10,0,propuesta,estado,comunidades)
@@ -339,7 +335,7 @@ async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtr
 #### Group Queries
 @app.get('/search/grupos/{query}')   
 async def search_grupos(query,num=10, inicio=0):
-    if validate_input(query)==False:
+    if query.isspace() or query in ID_CHARS:
         return []
     else:
         query = format_query(query)
@@ -368,7 +364,7 @@ async def grupos(id):
 
 @app.get('/grupos/{query}/total')   
 async def grupos_total(query):
-    if validate_input(query)==False:
+    if query.isspace() or query in ID_CHARS:
         return []
     else:
         query = format_query(query)
@@ -381,7 +377,7 @@ async def grupos_total(query):
 
 @app.get('/search/investigadores/{query}')   
 async def search_investigadores(query,num=10, inicio=0):
-    if validate_input(query)==False:
+    if query.isspace() or query in ID_CHARS:
         return []
     else:
         query = format_query(query)
@@ -411,7 +407,7 @@ async def investigadores(id):
 
 @app.get('/investigadores/{query}/total')   
 async def investigadores_total(query):
-    if validate_input(query)==False:
+    if query.isspace() or query in ID_CHARS:
         return []
     else:
         query = format_query(query)
