@@ -30,7 +30,7 @@ SOLR_CORE_PROYECTOS = 'proyectos/'
 SOLR_CORE_GRUPOS = 'grupos/'
 SOLR_CORE_INVESTIGADORES = 'investigadores/'
 
-ID_CHARS = "!\"#$%&'()[]*+.-/:;<=>?@[\]^`{|}~"
+ID_CHARS =  r"[!\"#$%&'()\[\]*+./:;<\'=>?@\\^`{|}~]"
 
 modelo_embeddings = Transformer()
 
@@ -51,9 +51,9 @@ def get_array_dict(list_items,name):
     return list_dict
 
 def validate_input(input):
-    if re.match('[a-zA-Z\s]+$', input):
-        return True
-    return False
+    if re.search(ID_CHARS, input):
+        return False
+    return True
 
 def format_query(query):
     return '\"'+query.lower()+'\"'
