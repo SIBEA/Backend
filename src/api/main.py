@@ -1,12 +1,15 @@
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
-from nlp.embeddings import embed
+from nlp.Embeddings_model import Transformer
+from integracion_solr import solr_client
 import requests as r
 from enum import Enum
 from fastapi.middleware.cors import CORSMiddleware
 
 import pandas as pd
 import numpy as np
+
+import re 
 
 app = FastAPI()
 
@@ -20,13 +23,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
  
 SOLR_URL = 'http://solr:8983/solr/'
 SOLR_CORE_PROYECTOS = 'proyectos/'
 SOLR_CORE_GRUPOS = 'grupos/'
 SOLR_CORE_INVESTIGADORES = 'investigadores/'
 
-ID_CHARS = "!\"#$%&'()[]*+.-/:;<=>?@[\]^`{|}~"
+ID_CHARS =  r"[!\"#$%&'()\[\]*+./:;<\'=>?@\\^`{|}~]"
+
+modelo_embeddings = Transformer()
 
 @app.get('/')
 async def docs():
@@ -44,6 +50,103 @@ def get_array_dict(list_items,name):
         list_dict.append(util_format(l,name))
     return list_dict
 
+def validate_input(input):
+    if re.search(ID_CHARS, input):
+        return False
+    return True
+
+def format_query(query):
+    return '\"'+query.lower()+'\"'
+
+
+def fill_topk_values(topk):
+    for item in topk:
+        doc = solr_client.get_project_by_id(item.get('id')).get('docs')[0]
+        item['propuesta']  = doc.get('propuesta')
+        item['estado']  = doc.get('estado')
+        item['fecha_inicio'] =  doc.get('fecha_inicio')
+        item['fecha_fin'] = doc.get('fecha_fin')
+        item['grupo'] = doc.get('grupo')
+        item['miembros'] = doc.get('miembros')
+        item['descripcion'] = doc.get('descripcion')
+        item['obj_general'] = doc.get('obj_general')
+        item['obj_especifico'] = doc.get('obj_especifico')
+        item['metodologia'] = doc.get('metodologia')
+        item['pertinencia'] = doc.get('pertinencia')
+        item['comunidades'] = doc.get('comunidades')
+        item['sujeto_investigacion'] = doc.get('sujeto_investigacion')
+        item['ubicaciones'] = doc.get('ubicaciones')
+    return topk
+
+def remove_duplicates_knn(results,top10):
+    print(f'original size {len(results)}')
+    for item in top10:
+        for result in results:
+           #id1 = item.get('id')
+            #id2 = result.get('id')
+            #print(f'{id1} {id2}')
+            if item.get('id') == result.get('id'):
+                #print('equal, deleting')
+                results.remove(result)
+                #$print(f'new size {len(results)}')
+               # print('ESTAAAA')
+    return results
+
+
+def filter_knn_response(doc_vector,propuesta='',estado='',comunidades='sin_comunidades'):
+    filtered_doc = []
+
+    for doc in doc_vector:
+        prop_doc = doc.get('propuesta')
+        estado_doc = doc.get('estado')
+        com_doc = doc.get('comunidades')
+        prop_filter = ''
+        estado_filter = ''
+        com_filter = ''
+        #print(f'propuesta doc {prop_doc} propuesta filtro {propuesta}')
+        if not propuesta:
+            prop_filter = prop_doc
+        else:
+            prop_filter = propuesta[1:-1]
+        if not estado:
+            estado_filter = estado_doc
+        else:
+            estado_filter = estado[1:-1]
+        if comunidades == 'sin_comunidades':
+            com_filter = ['NAN']
+        elif comunidades == 'con_comunidades':
+            if com_doc != ['NAN']:
+                com_filter == com_doc
+            else:
+                com_filter = []
+        else:
+            com_filter = com_doc
+        print('doc')
+        print(f'prop {prop_doc} estado {estado_doc} comunidades {com_doc}')
+        print('filter')
+        print(f'prop {prop_filter} estado {estado_filter} comunidades {com_filter}')
+        if prop_filter == prop_doc and estado_filter == estado_doc and com_filter == com_doc:
+            print('filtering')
+            #print(doc)
+            filtered_doc.append(doc)             
+    return filtered_doc
+
+def make_knn_query(vector, topk,propuesta ='',estado='',comunidades='sin_filtrar'):
+    doc_vector = solr_client.get_knn_results(vector,topk)
+    ###get the details so we can filter this response
+    doc_vector = fill_topk_values(doc_vector)
+    ##Need to filter this response (len should be topk)
+    print(f'len before filtering {len(doc_vector)}')
+    doc_vector = filter_knn_response(doc_vector,propuesta,estado,comunidades)
+    print(f'len after filtering {len(doc_vector)}')
+    return doc_vector
+
+def get_general_results(query,num,inicio,propuesta,estado,comunidades):
+    response = solr_client.get_projects_results(query,3000,0,propuesta,estado,comunidades)
+    found = response.get('numFound')
+    docs = solr_client.get_projects_results(query,found,0,propuesta,estado,comunidades).get('docs')
+    return docs
+
 
 """
 ENDPOINT: /search/proyectos/topk/{query}.
@@ -54,91 +157,60 @@ RETORNO:
 """
 @app.get('/search/proyectos/topk/{query}')   
 async def search_proyectos_topk(query, num=10, inicio=0):
-    if query.isspace() or query in ID_CHARS:
+    if validate_input(query) == False:
         return []
     else:
-        vector = embed(query)
-        SOLR_QUERY = 'select?q={!knn f=vector topK=10}'+str(vector.tolist())
-        SOLR_QUERY_ARGS = '&fl=id,titulo'
-        SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio    
-        req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
-        response = r.get(req).json().get('response')
-        docs = response.get('docs')
-        return docs
+        vector = modelo_embeddings.embed(query)
+        docs = solr_client.get_knn_results(vector,20)
+        print('RESULTADOS VECTORIAL')
+        #print(docs)
+        return docs[10:len(docs)]
 
 @app.get('/search/proyectos/{titulo}/topk')   
 async def search_proyectos_titulo_topk(query, num=10, inicio=0):
     if query.isspace() or query =='*':
         return 'No se encontraron resultados para la busqueda'
     else:
-        vector = embed(query)
-        SOLR_QUERY = 'select?q={!knn f=vector topK=11}'+str(vector.tolist())
-        SOLR_QUERY_ARGS = '&fl=id,titulo'
-        SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio    
-        req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
-        response = r.get(req).json().get('response')
-        docs = response.get('docs')
+        vector = modelo_embeddings.embed(query)
+        docs = solr_client.get_knn_results(vector,11)
         docs.pop(0)
         return docs
 
-"""
-ENDPOINT: /search/proyectos/{query}.
-ARGUMENTOS:
-    - query:string =  termino de busqueda
-RETORNO: 
-    - Response con la lista de resultados de busqueda
-DESCRIPCION:
-     Este endpoint entrega resultados de los proyectos buscando el termino ingresado en los siguientes campos:
-        - titulo
-        - descripcion
-        - grupo
-        - miembros
-        - descripcion
-        - obj_general
-        - obj_especifico
-        - metodologia
-        - pertinencia
-        - comunidades
-        - ubicaciones
-     Posteriormente reordena los resultados de busqueda (reranking) en base a la similitud del embedding generado a partir del termino de consulta
-"""
+
 @app.get('/search/proyectos/{query}')   
 async def search_proyectos(query, num=10, inicio=0,propuesta = '', estado='',comunidades='sin_filtrar'):
-    if query.isspace() or query in ID_CHARS:
+    if validate_input(query) == False:
         return []
     else:
-        #SOLR_QUERY = 'select?q=titulo:'+query+' or descripcion:'+query
-        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=titulo + descripcion + obj_general + obj_especifico + metodologia + pertinencia'
-        #SOLR_QUERY_FILTERS = ' and propuesta:'+propuesta+' and estado:'+estado
-        SOLR_QUERY_FILTERS =''
-        if propuesta:
-            SOLR_QUERY_FILTERS+=' &fq=propuesta:'+propuesta
-        if estado:
-            SOLR_QUERY_FILTERS+=' &fq=estado:'+estado
-        if comunidades == 'con_comunidades':
-            SOLR_QUERY_FILTERS+=' &fq=-comunidades:NAN'
-        if comunidades == 'sin_comunidades':
-            SOLR_QUERY_FILTERS+=' &fq=comunidades:NAN'
-        SOLR_QUERY_ARGS = ' &fl=id,titulo, descripcion,grupo,comunidades,propuesta,estado'        
-        #vector = embed(query)
-        #SOLR_QUERY_RERANK = '&rq={!rerank reRankQuery=$rqq reRankWeight=1}&rqq={!knn f=vector topK=50}'+str(vector.tolist())
-        SOLR_QUERY_PAG = ' &rows='+num+'&start='+inicio
-        req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_FILTERS+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
-        print("QUERYYYYY")
-        print(req)
-        response = r.get(req).json().get('response')
-        #print('RESPONSEEE')
-        #print(response)
+        query = format_query(query)
+        response = solr_client.get_projects_results(query,3000,inicio,propuesta,estado,comunidades)
+        vector = modelo_embeddings.embed(query)
+        docs_vector = make_knn_query(vector,10,propuesta,estado,comunidades)
+        
+        #print(docs_vector)
+        found = response.get('numFound')
+        print(f'RESPONSE NUMFOUND: {found}')
+        print(f'INICIOOOO {type(inicio)}')
         if(response.get('numFound')>0):
-            docs = response.get('docs')    
+            docs = get_general_results(query,num,inicio,propuesta,estado,comunidades)
+            print('BEFORE REMOVING DUPLICATES')
+            print(f'LEN OF DOCS: {len(docs)} LEN OF KNN: {len(docs_vector)}')
+            docs = remove_duplicates_knn(docs,docs_vector)    
+            print('AFTER REMOVING DUPLICATES')
+            print(f'LEN OF DOCS: {len(docs)} LEN OF KNN: {len(docs_vector)}')
+            docs = docs = docs_vector+docs            
             for doc in docs:
                 #doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
                 if(doc['grupo'][0] != 'No asociado a grupos'):
                     #print(doc['grupo'])
                     doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
-            return docs
+            lower = int(inicio)
+            upper = int(inicio)+int(num)
+            sublist = docs[lower:upper]
+            print(f'LEN OF DOCS: {len(docs)} LOWER {lower} UPPER {upper} NEWLEN {len(sublist)}')
+            return docs[lower:upper]
         else:
-            return []
+            return docs_vector
 
 
 """
@@ -153,22 +225,15 @@ async def proyectos(id):
     if id.isspace() or id in ID_CHARS:
         return None
     else:
-        #probar con 3903
-        SOLR_QUERY = 'select?q=id:'+id
-        #Definir que otros argumentos entregar o que argumentos de aqui quitar
-        SOLR_QUERY_ARGS = '&fl=id,titulo, propuesta, fecha_inicio, fecha_fin, grupo, miembros, descripcion, obj_general, obj_especifico, metodologia, pertinencia, comunidades,sujeto_investigacion, ubicaciones'    
-        req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_ARGS
-        response = r.get(req).json()
-        del response["responseHeader"]["params"]
-        response = r.get(req).json().get('response')
+        response = solr_client.get_project_by_id(id)
         print(response)
         if(response.get('numFound')>0):
             doc = response.get('docs')[0]
             doc['miembros'] = get_array_dict(doc['miembros'],'nombre')
             #doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
-            print(doc['grupo'])
+            #print(doc['grupo'])
             if(doc['grupo'][0] != 'No asociado a grupos'):
-                    print(doc['grupo'])
+                    #print(doc['grupo'])
                     doc['grupo'] = get_array_dict(doc['grupo'],'nombre')
             return doc
         else:
@@ -183,20 +248,18 @@ RETORNO:
 """
 @app.get('/search/proyectos/coordinates/{query}')
 async def search_proyectos_coordinates(query):
-    if query.isspace() or query in ID_CHARS:
+    if validate_input(query) == False:
         return []
     else:
-        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=titulo + descripcion + obj_general + obj_especifico + metodologia + pertinencia'
-        SOLR_QUERY_ARGS = '&fl=ubicaciones,titulo,id'
-        SOLR_QUERY_PAG = '&rows='+str(999)
-        SOLR_QUERY_REMOVE_NAN = ' and -ubicaciones:nan'
-        req = req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_REMOVE_NAN+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
-        response = (r.get(req).json()).get('response')
-        #Se debe implementar un modulo que gestione todo el postprocesamiento de las respuestas que entrega Solr
-        print(response.keys())
-        documents = response.get('docs')
+        query = format_query(query)
+        response = solr_client.get_projects_results(query,2000,0,args ='ubicacion')
+        docs = response.get('docs')
+        vector = modelo_embeddings.embed(query)
+        docs_vector = make_knn_query(vector,10)
+        docs = remove_duplicates_knn(docs,docs_vector)    
+        docs = docs_vector+docs
         coordinates = []
-        for doc in documents:
+        for doc in docs:
             title = doc.get('titulo')
             id = doc.get('id')
             locations = doc.get('ubicaciones')                
@@ -222,29 +285,26 @@ RETORNO:
 """
 @app.get('/search/proyectos/communities/{query}')
 async def search_proyectos_communities(query):
-    if query.isspace() or query in ID_CHARS:
+    if validate_input(query) == False:
         return []
     else:
     #La eliminacion de stopwords deberia realizarse durante la fase de indexado de informacion, esto es temporal
+        query = format_query(query)
         stopwords = open('stopwords.txt').readlines()
-        stopwords = [word.strip() for word in stopwords]
-        print(f'stopwords: {stopwords}')
-        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=titulo + descripcion + obj_general + obj_especifico + metodologia + pertinencia'
-        SOLR_QUERY_REMOVE_NAN = ' and -comunidades:NAN'
-        SOLR_QUERY_ARGS = '&fl=comunidades'
-        SOLR_QUERY_PAG = '&rows='+str(999)
-        req = req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_REMOVE_NAN+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
-        response = (r.get(req).json()).get('response')
-        print(req)
-        #Se debe implementar un modulo que gestione todo el postprocesamiento de las respuestas que entrega Solr
-        documents = response.get('docs')
+        stopwords = [word.strip() for word in stopwords]        
+        response = solr_client.get_projects_results(query,2000,0,args ='comunidad')                
+        docs = response.get('docs')
+        vector = modelo_embeddings.embed(query)
+        docs_vector = make_knn_query(vector,10,comunidades = 'con_comunidades')
+        print(f'LENLENLEN {len(docs_vector)}') 
+        docs = docs_vector+docs
         communities_resp = []
-        for doc in documents:        
+        for doc in docs:        
             communities_doc = doc.get('comunidades')        
             for com in communities_doc:
                 com_split = com.split(' ')            
                 for word in com_split:
-                    if word.lower()  not in stopwords and word.isnumeric()==False and word:
+                    if word.lower()  not in stopwords and word.isnumeric()==False and len(word)>2 and word:
                         communities_resp.append(word.lower())       
         word_cloud =[]
         
@@ -264,43 +324,32 @@ RETORNO:
     - Response con los parametros del proyecto de investigacion correspondiente al ID de entrada
 """
 @app.get('/proyectos/{query}/total')   
-async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtrar'):
-    if query.isspace() or query in ID_CHARS:
+async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtrar'):    
+    if validate_input(query) == False:
         return []
     else:
-        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=titulo + descripcion + obj_general + obj_especifico + metodologia + pertinencia'
-        SOLR_QUERY_ARGS = '&fl=titulo'
-        SOLR_QUERY_FILTERS =''
-        if propuesta:
-            SOLR_QUERY_FILTERS+=' &fq=propuesta:'+propuesta
-        if estado:
-            SOLR_QUERY_FILTERS+=' &fq=estado:'+estado
-        if comunidades == 'con_comunidades':
-            SOLR_QUERY_FILTERS+=' &fq=-comunidades:NAN'
-        if comunidades == 'sin_comunidades':
-            SOLR_QUERY_FILTERS+=' &fq=comunidades:NAN'
-        SOLR_QUERY_ARGS = ' &fl=id,titulo, descripcion,grupo,comunidades,propuesta,estado' 
-        req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_FILTERS+SOLR_QUERY_ARGS
-        response = r.get(req).json().get('response')
-        return response.get('numFound')
+        query = format_query(query)
+        #response = solr_client.get_projects_results(query,10,0,propuesta,estado,comunidades)
+        vector = modelo_embeddings.embed(query)
+        docs_vector = make_knn_query(vector,10,propuesta,estado,comunidades)
+        docs = get_general_results(query,10,0,propuesta,estado,comunidades)
+        docs = remove_duplicates_knn(docs,docs_vector)    
+        docs = docs = docs_vector+docs
+        return len(docs)
 
 
 
 #### Group Queries
 @app.get('/search/grupos/{query}')   
 async def search_grupos(query,num=10, inicio=0):
-    if query.isspace() or query in ID_CHARS:
+    if validate_input(query) == False:
         return []
     else:
-        #SOLR_QUERY = 'select?q=nombre:'+query+' or proyectos:'+query+' or investigadores:'+query
-        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=nombre + proyectos + investigadores'
-        SOLR_QUERY_ARGS = '&fl=id,nombre'
-        SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio 
-        req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
-        response = r.get(req).json().get('response')
+        query = format_query(query)
+        response = solr_client.get_groups_results(query,num,inicio)
         if(response.get('numFound')>0):
             docs = response.get('docs')
-            print(docs)
+            #print(docs)
             return docs
         else:
             return []
@@ -311,10 +360,7 @@ async def grupos(id):
     if id.isspace() or id in ID_CHARS:
         return None
     else:
-        SOLR_QUERY = 'select?q=id:'+id
-        SOLR_QUERY_ARGS = '&fl=id,nombre,lider,email_lider, url_gruplac,proyectos,investigadores'
-        req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS
-        response = r.get(req).json().get('response')
+        response = solr_client.get_group_by_id(id)
         if(response.get('numFound')>0):
             doc = response.get('docs')[0]
             doc['proyectos'] = get_array_dict(doc['proyectos'],'titulo')
@@ -325,14 +371,12 @@ async def grupos(id):
 
 @app.get('/grupos/{query}/total')   
 async def grupos_total(query):
-    if query.isspace() or query in ID_CHARS:
+    if validate_input(query) == False:
         return []
     else:
-        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=nombre + proyectos + investigadores'
-        SOLR_QUERY_ARGS = '&fl=id,nombre'
-        req = SOLR_URL+SOLR_CORE_GRUPOS+SOLR_QUERY+SOLR_QUERY_ARGS
-        response = r.get(req).json().get('response')
-        return response
+        query = format_query(query)
+        response = solr_client.get_groups_results(query)
+        return response.get('numFound')
 
 
 #### Researchers Queries
@@ -340,15 +384,11 @@ async def grupos_total(query):
 
 @app.get('/search/investigadores/{query}')   
 async def search_investigadores(query,num=10, inicio=0):
-    if query.isspace() or query in ID_CHARS:
+    if validate_input(query) == False:
         return []
     else:
-        #SOLR_QUERY = 'select?q=nombre:'+query+' or grupos:'+query+' or proyectos:'+query
-        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=nombre + grupos + proyectos'
-        SOLR_QUERY_ARGS = '&fl=id,nombre'
-        SOLR_QUERY_PAG = '&rows='+num+'&start='+inicio 
-        req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
-        response = r.get(req).json().get('response')
+        query = format_query(query)
+        response = solr_client.get_researchers_results(query,num,inicio)
         if(response.get('numFound')>0):
             docs = response.get('docs')
             return docs
@@ -361,10 +401,7 @@ async def investigadores(id):
     if id.isspace() or id in ID_CHARS:
         return None
     else:
-        SOLR_QUERY = 'select?q=id:'+id
-        SOLR_QUERY_ARGS = '&fl=id,nombre,unidad_negocio,departamento,grupos,proyectos'
-        req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS
-        response = r.get(req).json().get('response')
+        response = solr_client.get_researcher_by_id(id)
         if(response.get('numFound')>0):
             doc = response.get('docs')[0]
             doc['proyectos'] = get_array_dict(doc['proyectos'],'titulo')
@@ -377,13 +414,11 @@ async def investigadores(id):
 
 @app.get('/investigadores/{query}/total')   
 async def investigadores_total(query):
-    if query.isspace() or query in ID_CHARS:
+    if validate_input(query) == False:
         return []
     else:
-        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=nombre + grupos + proyectos'
-        SOLR_QUERY_ARGS = '&fl=id,nombre'
-        req = SOLR_URL+SOLR_CORE_INVESTIGADORES+SOLR_QUERY+SOLR_QUERY_ARGS
-        response = r.get(req).json().get('response')
+        query = format_query(query)
+        response = solr_client.get_researchers_results(query,10,0)
         return response.get('numFound')
     
     
