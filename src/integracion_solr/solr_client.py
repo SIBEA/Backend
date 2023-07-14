@@ -24,7 +24,12 @@ def get_knn_results(vector,topk):
     return docs
 
 def get_projects_results(query, num=10, inicio=0, propuesta = '', estado = '', comunidades = 'sin_filtrar', args = 'none'):
-    SOLR_QUERY='select?defType=dismax&q='+query+' & qf=titulo + descripcion + obj_general + obj_especifico + metodologia + pertinencia + ubicaciones + comunidades + sujeto_investigacion'
+    print('ESTE ES EL QUERY: '+query)
+    if query=='\"*\"':
+        SOLR_QUERY='select?q=*'
+    else: 
+        SOLR_QUERY='select?defType=dismax&q='+query+' & qf=titulo + descripcion + obj_general + obj_especifico + metodologia + pertinencia + ubicaciones + comunidades + sujeto_investigacion'
+    print('AAAAA '+SOLR_QUERY)
     SOLR_QUERY_FILTERS =''
     if propuesta:
         print('SOLR FILTERING PROPOSAL')
@@ -45,6 +50,7 @@ def get_projects_results(query, num=10, inicio=0, propuesta = '', estado = '', c
     SOLR_QUERY_PAG = '&rows='+str(num)+'&start='+str(inicio) 
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_FILTERS+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     response = r.get(req).json().get('response')
+    print("ESTOY IMPRIMIENDO EL REQUEST")
     print(req)
     return response
 

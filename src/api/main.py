@@ -30,7 +30,7 @@ SOLR_CORE_PROYECTOS = 'proyectos/'
 SOLR_CORE_GRUPOS = 'grupos/'
 SOLR_CORE_INVESTIGADORES = 'investigadores/'
 
-ID_CHARS =  r"[!\"#$%&'()\[\]*+./:;<\'=>?@\\^`{|}~]"
+ID_CHARS =  r"[!\"#$%&'()\[\]+./:;<\'=>?@\\^`{|}~]"
 
 modelo_embeddings = Transformer()
 
@@ -325,6 +325,7 @@ RETORNO:
 """
 @app.get('/proyectos/{query}/total')   
 async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtrar'):    
+    print("TOTAL")
     if validate_input(query) == False:
         return []
     else:
@@ -332,9 +333,11 @@ async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtr
         #response = solr_client.get_projects_results(query,10,0,propuesta,estado,comunidades)
         vector = modelo_embeddings.embed(query)
         docs_vector = make_knn_query(vector,10,propuesta,estado,comunidades)
+        print("PETICION A SOLR")
         docs = get_general_results(query,10,0,propuesta,estado,comunidades)
         docs = remove_duplicates_knn(docs,docs_vector)    
         docs = docs = docs_vector+docs
+        
         return len(docs)
 
 
