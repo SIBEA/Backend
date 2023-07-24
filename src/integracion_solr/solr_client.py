@@ -23,16 +23,15 @@ def get_knn_results(vector,topk):
     #print(len(docs))
     return docs
 
-def get_projects_results(query, num=10, inicio=0, propuesta = '', estado = '', comunidades = 'sin_filtrar', args = 'none'):
-    print('ESTE ES EL QUERY: '+query)
+def get_projects_results(query="*", num=10, inicio=0, propuesta = '', estado = '', comunidades = 'sin_filtrar', args = 'none'):
     if query=='\"*\"':
         SOLR_QUERY='select?q=*'
     else: 
         SOLR_QUERY='select?defType=dismax&q='+query+' & qf=titulo + descripcion + obj_general + obj_especifico + metodologia + pertinencia + ubicaciones + comunidades + sujeto_investigacion'
-    print('AAAAA '+SOLR_QUERY)
+    #print('AAAAA '+SOLR_QUERY)
     SOLR_QUERY_FILTERS =''
     if propuesta:
-        print('SOLR FILTERING PROPOSAL')
+        #('SOLR FILTERING PROPOSAL')
         SOLR_QUERY_FILTERS+=' &fq=propuesta:'+propuesta
     if estado:
         SOLR_QUERY_FILTERS+=' &fq=estado:'+estado
@@ -44,13 +43,15 @@ def get_projects_results(query, num=10, inicio=0, propuesta = '', estado = '', c
         SOLR_QUERY_ARGS = '&fl=comunidades & fq = -comunidades:NAN'    
     elif args == 'ubicacion':
         SOLR_QUERY_ARGS = '&fl=id,titulo,ubicaciones & fq = -ubicaciones:nan'  
+    elif args == 'report_location':
+        SOLR_QUERY_ARGS = '&fl=id,titulo,ubicaciones,fecha_inicio,fecha_fin & fq = -ubicaciones:nan'  
     else:
         SOLR_QUERY_ARGS = '&fl=id,titulo, propuesta, fecha_inicio, fecha_fin, grupo, miembros, descripcion, obj_general, obj_especifico, metodologia, pertinencia, comunidades,sujeto_investigacion, ubicaciones'
 
     SOLR_QUERY_PAG = '&rows='+str(num)+'&start='+str(inicio) 
     req = SOLR_URL+SOLR_CORE_PROYECTOS+SOLR_QUERY+SOLR_QUERY_FILTERS+SOLR_QUERY_ARGS+SOLR_QUERY_PAG
     response = r.get(req).json().get('response')
-    print("ESTOY IMPRIMIENDO EL REQUEST")
+    #print("ESTOY IMPRIMIENDO EL REQUEST")
     print(req)
     return response
 

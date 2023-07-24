@@ -3,13 +3,17 @@ from fastapi.responses import RedirectResponse
 from nlp.Embeddings_model import Transformer
 from integracion_solr import solr_client
 import requests as r
+from fastapi import Request
 from enum import Enum
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.responses import StreamingResponse
+from fastapi.templating import Jinja2Templates
+import io
 import pandas as pd
 import numpy as np
-
 import re 
+
+from datetime import datetime
 
 app = FastAPI()
 
@@ -23,7 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+templates = Jinja2Templates(directory="templates")
  
 SOLR_URL = 'http://solr:8983/solr/'
 SOLR_CORE_PROYECTOS = 'proyectos/'
@@ -39,7 +43,8 @@ async def docs():
     response = RedirectResponse('docs')
     return response
 
-#Take string, split it and return dictionary
+#Utility methods
+
 def util_format(string_array,name):
     new_dict = string_array.split(';')
     return {'id':new_dict[0],name:new_dict[1]}
@@ -82,14 +87,8 @@ def remove_duplicates_knn(results,top10):
     print(f'original size {len(results)}')
     for item in top10:
         for result in results:
-           #id1 = item.get('id')
-            #id2 = result.get('id')
-            #print(f'{id1} {id2}')
             if item.get('id') == result.get('id'):
-                #print('equal, deleting')
                 results.remove(result)
-                #$print(f'new size {len(results)}')
-               # print('ESTAAAA')
     return results
 
 
@@ -147,6 +146,7 @@ def get_general_results(query,num,inicio,propuesta,estado,comunidades):
     docs = solr_client.get_projects_results(query,found,0,propuesta,estado,comunidades).get('docs')
     return docs
 
+# Projects endpoints
 
 """
 ENDPOINT: /search/proyectos/topk/{query}.
@@ -248,11 +248,15 @@ RETORNO:
 """
 @app.get('/search/proyectos/coordinates/{query}')
 async def search_proyectos_coordinates(query):
+    print('LKAISHAKWLSJHLKAJSH')
     if validate_input(query) == False:
         return []
     else:
         query = format_query(query)
+        print('LKAISHAKWLSJHLKAJSH')
         response = solr_client.get_projects_results(query,2000,0,args ='ubicacion')
+        print('LENGTH')
+        print(response.get('numFound'))
         docs = response.get('docs')
         vector = modelo_embeddings.embed(query)
         docs_vector = make_knn_query(vector,10)
@@ -269,8 +273,7 @@ async def search_proyectos_coordinates(query):
                     nombre = loc[0]
                     lat = loc[1]
                     lon = loc[2]
-                    coordinates.append({'id':id,'proyecto':title,'nombre':nombre,'lat':lat,'lon':lon})          
-        print(coordinates)
+                    coordinates.append({'id':id,'proyecto':title,'nombre':nombre,'lat':lat,'lon':lon})        
         return coordinates
 
 def remove_duplicates_util(locations):
@@ -339,10 +342,108 @@ async def proyectos_total(query,propuesta = '', estado='',comunidades='sin_filtr
         docs = docs = docs_vector+docs
         
         return len(docs)
+    
+"""
+ENDPOINT: reports/locations/
+ARGUMENTOS:
+    - fecha inicial:
+    - fecha final
+Retorno:
+    - Response con un CSV que contenga los proyectos que tengan ubicaciones en estas fechas.
+"""
+
+"""
+1. Query projects for all projects that contain locations.
+2. select only those within the dates given.
+3. Create a CSV file from the data returned (dataframe most likely)
+"""
+def format_date(date):
+    return date.split("T")[0]
+
+def format_location(location):
+    return location.split(";")[0]
+
+def clean_solr_string(element, chars):
+    translation_table = str.maketrans('', '', chars)
+    return element.translate(translation_table)
 
 
+def validar_fecha(fecha_inicio, fecha_fin, fecha_inicio_proyecto, fecha_fin_proyecto):
+    try:
+        fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+        fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d')
+        fecha_inicio_proyecto = datetime.strptime(fecha_inicio_proyecto, '%Y-%m-%d')
+        fecha_fin_proyecto = datetime.strptime(fecha_fin_proyecto, '%Y-%m-%d')
 
-#### Group Queries
+        print("----------------")
+        print(fecha_inicio)
+        print(fecha_fin)
+        print(fecha_inicio_proyecto)
+        print(fecha_fin_proyecto)
+        print("----------------")
+        
+        #return not (fecha_fin < fecha_inicio_proyecto or fecha_inicio > fecha_fin_proyecto)
+        return fecha_inicio<=fecha_inicio_proyecto<=fecha_fin or fecha_inicio<=fecha_fin_proyecto<=fecha_fin
+
+    except ValueError:
+        print("UPS")
+        return False
+
+"""
+id
+titulo
+fecha_inicio
+fecha_fin
+ubicaciones
+
+"""
+
+"http://localhost:8000/generate_csv/%20method=?fecha_inicio=2023-07-23&fecha_fin=2023-07-23"
+"http://localhost:8000/generate_csv/?fecha_inicio=2010-01-01&fecha_fin=2040-01-01"
+#testing how to download a csv
+@app.get('/reporte_fechas/')
+async def create_report_dates(fecha_inicio , fecha_fin ):
+    dict_response = solr_client.get_projects_results("\"*\"",3000,0,args ='report_location')    
+    # filter projects within range
+    proyectos = []
+    for dict in dict_response.get("docs"):   
+        dict["titulo"] = clean_solr_string(dict["titulo"][0],"[]\'")
+        dict["fecha_inicio"] = format_date(dict["fecha_inicio"][0])
+        dict["fecha_fin"] = format_date(dict["fecha_fin"][0])
+        dict["ubicaciones"] = format_location(dict["ubicaciones"][0])        
+        if validar_fecha(fecha_inicio,fecha_fin,dict["fecha_inicio"],dict["fecha_fin"]) == True:
+            print("VALIDATED")
+            proyectos.append({
+                "id":dict["id"],
+                "titulo":dict["titulo"],
+                "ubicaciones":dict["ubicaciones"],
+                "fecha_inicio":dict["fecha_inicio"],
+                "fecha_fin":dict["fecha_fin"]
+            })
+    print(proyectos)
+    # append said projects into a csv
+    df_locations = pd.DataFrame(proyectos)
+    #df_locations.to_csv("./test.csv")
+    # download the file
+    stream = io.StringIO()
+    df_locations.to_csv(stream, index=False)
+    current_date_time = datetime.now()
+    filename = "Reporte ubicaciones "+str(current_date_time)+".csv"
+    response = StreamingResponse(
+        iter([stream.getvalue()]), media_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename="+filename
+    return response
+
+"""
+FORMS FOR THE DATE FUNCTION
+"""
+
+@app.get("/reporte_ubicaciones/")
+async def form_page(request: Request):
+    return templates.TemplateResponse("form.html", {"request": request})
+
+# Group Endpoints
+
 @app.get('/search/grupos/{query}')   
 async def search_grupos(query,num=10, inicio=0):
     if validate_input(query) == False:
@@ -382,8 +483,7 @@ async def grupos_total(query):
         return response.get('numFound')
 
 
-#### Researchers Queries
-
+# Researchers Endpoints
 
 @app.get('/search/investigadores/{query}')   
 async def search_investigadores(query,num=10, inicio=0):
