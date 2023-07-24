@@ -361,7 +361,7 @@ def format_date(date):
     return date.split("T")[0]
 
 def format_location(location):
-    return location.split(";")[0]
+    return location.split(";")
 
 def clean_solr_string(element, chars):
     translation_table = str.maketrans('', '', chars)
@@ -416,7 +416,9 @@ async def create_report_dates(fecha_inicio , fecha_fin ):
             proyectos.append({
                 "id":dict["id"],
                 "titulo":dict["titulo"],
-                "ubicaciones":dict["ubicaciones"],
+                "ubicacion":dict["ubicaciones"][0],
+                "latitud":dict["ubicaciones"][1],
+                "longitud":dict["ubicaciones"][2],
                 "fecha_inicio":dict["fecha_inicio"],
                 "fecha_fin":dict["fecha_fin"]
             })
