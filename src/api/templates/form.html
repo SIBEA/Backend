@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Form Page</title>
+</head>
+<body>
+    <h1>Reporte de ubicaciones SIBEA</h1>
+    <form action="/reporte_fechas/" method="get">
+        <label for="fecha_inicio">Fecha de inicio:</label>
+        <input type="date" id="fecha_inicio" name="fecha_inicio" required><br>
+
+        <label for="fecha_fin">Fecha de fin:</label>
+        <input type="date" id="fecha_fin" name="fecha_fin" required><br>
+
+        <input type="submit" value="Generar reporte en csv">
+    </form>
+</body>
+</html>
